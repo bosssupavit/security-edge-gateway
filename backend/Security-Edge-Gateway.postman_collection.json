@@ -1,0 +1,350 @@
+{
+  "info": {
+    "name": "Security Edge Gateway",
+    "_postman_id": "seg-backend-v1",
+    "description": "REST API collection for the Security Edge Gateway backend.\n\nRun **Auth / Login** first — the token is automatically saved to the `token` variable and used by all authenticated requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.collectionVariables.set('token', json.access_token);",
+                  "    pm.collectionVariables.set('username', json.username);",
+                  "    pm.collectionVariables.set('role', json.role);",
+                  "    console.log('Token saved. Role:', json.role);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Obtain a JWT access token. The test script automatically saves the token to the `token` collection variable."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Basic Liveness",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Simple liveness probe — returns `{status: ok}`."
+          }
+        },
+        {
+          "name": "Detailed Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Checks all subsystems: gateway uptime, SQLite, Modbus TCP, HikCentral, ZKBio."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cameras",
+      "item": [
+        {
+          "name": "List All Cameras (with NVR info)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/cameras",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cameras"]
+            },
+            "description": "Public endpoint. Returns all cameras joined with their parent NVR info."
+          }
+        },
+        {
+          "name": "List Cameras (device management)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/devices/cameras",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "cameras"]
+            },
+            "description": "Requires auth. Returns cameras with Modbus channel mapping."
+          }
+        },
+        {
+          "name": "Get Camera",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/devices/cameras/{{camera_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "cameras", "{{camera_id}}"]
+            },
+            "description": "Get full detail of a single camera by ID."
+          }
+        },
+        {
+          "name": "Update Camera (Modbus mapping)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_name\": \"CAM-01\",\n  \"ip_address\": \"192.168.1.101\",\n  \"channel_no\": 0,\n  \"modbus_register\": 40010\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/devices/cameras/{{camera_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "cameras", "{{camera_id}}"]
+            },
+            "description": "Update camera name, IP, Modbus channel_no (bit 0-15 within register) and/or modbus_register. All fields are optional."
+          }
+        }
+      ]
+    },
+    {
+      "name": "ZK Access Control",
+      "item": [
+        {
+          "name": "List ZK Devices (live status)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/zk/devices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "zk", "devices"]
+            },
+            "description": "Public endpoint. Returns all ZK access controllers with live door status."
+          }
+        },
+        {
+          "name": "List ZK Devices (device management)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/devices/zk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "zk"]
+            },
+            "description": "Requires auth. Returns ZK devices with Modbus slot mapping."
+          }
+        },
+        {
+          "name": "Get ZK Device",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/devices/zk/{{zk_device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "zk", "{{zk_device_id}}"]
+            },
+            "description": "Get full detail of a single ZK device by ID."
+          }
+        },
+        {
+          "name": "Update ZK Device (Modbus mapping)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alias\": \"ACC-01\",\n  \"ip_address\": \"192.168.244.41\",\n  \"slot_no\": 0,\n  \"modbus_register\": 40000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/devices/zk/{{zk_device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "zk", "{{zk_device_id}}"]
+            },
+            "description": "Update alias, IP, Modbus slot_no (0-4 within register) and/or modbus_register. All fields are optional."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Modbus",
+      "item": [
+        {
+          "name": "Live Register Values",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/modbus/registers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "modbus", "registers"]
+            },
+            "description": "Read live FC03 holding register values from in-memory Modbus datastore.\n\n- Block A (40000–40007): ZK access controllers (5 devices/reg, 3 bits/device)\n- Block B (40010–40020): CCTV cameras (16 cameras/reg, 1 bit/camera)"
+          }
+        },
+        {
+          "name": "Register Map",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/modbus/register-map",
+              "host": ["{{base_url}}"],
+              "path": ["api", "modbus", "register-map"]
+            },
+            "description": "Returns the configured register map — which device/camera is mapped to which register and bit position."
+          }
+        }
+      ]
+    },
+    {
+      "name": "HikCentral",
+      "item": [
+        {
+          "name": "List NVRs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/hikcentral/nvr",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hikcentral", "nvr"]
+            },
+            "description": "List all NVR/encoder devices with camera counts from local DB."
+          }
+        },
+        {
+          "name": "Get NVR",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/hikcentral/nvr/{{nvr_index_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hikcentral", "nvr", "{{nvr_index_code}}"]
+            },
+            "description": "Get a single NVR with the list of its cameras."
+          }
+        },
+        {
+          "name": "List Encode Devices (raw from HikCentral)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/hikcentral/encode-devices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hikcentral", "encode-devices"]
+            },
+            "description": "Proxy call to HikCentral API — returns raw NVR/DVR/encoder device list."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users (Admin)",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/users/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", ""]
+            },
+            "description": "Admin only. Returns all user accounts."
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"operator1\",\n  \"password\": \"changeme\",\n  \"role\": \"operator\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", ""]
+            },
+            "description": "Admin only. Create a new user. Role can be `admin` or `operator`."
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"newpassword\",\n  \"role\": \"operator\",\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Admin only. Update password, role, or enabled status. All fields are optional."
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Admin only. Cannot delete yourself."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "token",       "value": "" },
+    { "key": "username",    "value": "" },
+    { "key": "role",        "value": "" },
+    { "key": "camera_id",   "value": "1" },
+    { "key": "zk_device_id","value": "1" },
+    { "key": "nvr_index_code", "value": "" },
+    { "key": "user_id",     "value": "1" }
+  ]
+}
