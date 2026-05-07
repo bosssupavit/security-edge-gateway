@@ -1,0 +1,29 @@
+app:
+  host: 0.0.0.0
+  port: 8080
+  poll_interval_sec: 5
+  modbus_host: 0.0.0.0
+  modbus_port: 5020
+
+hikcentral:
+  base_url: https://cherry-images-habits-journalist.trycloudflare.com
+  app_key: "53062683"
+  app_secret: wkY8Bn9Rl8RD9Z0tG3vB
+
+
+push:
+  port: 8088
+
+database:
+  url: sqlite:///./gateway.db
+
+bacnet:
+  enabled: true
+  ip: 192.168.1.50/24
+  device_id: 4001
+
+zkbio:
+  base_url: https://into-liz-writings-ireland.trycloudflare.com
+  username: admin
+  password: P@ssw0rd
+  page_size: 100
