@@ -33,8 +33,7 @@ class HikCentralConfig(BaseModel):
 
 class ZkBioConfig(BaseModel):
     base_url: str
-    username: str
-    password: str
+    access_token: str          # API token from CVSecurity → System Mgmt → API Authorization
     page_size: int = 100
 
 

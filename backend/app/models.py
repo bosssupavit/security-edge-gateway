@@ -45,31 +45,41 @@ class NvrStatus(Base):
 
 
 class ZkDeviceStatus(Base):
-    """ZKTeco access controller status polled from BioTime/ZKBio management system."""
+    """ZKTeco access controller — identity + Modbus mapping + live door state."""
     __tablename__ = 'zk_device_status'
 
     id = Column(Integer, primary_key=True)
-    # ── identity (from BioTime API) ────────────────────────────────────────────
-    sn = Column(String, unique=True, index=True)        # serial number
-    alias = Column(String, default='')                  # device alias/name
-    area = Column(String, default='')                   # location description
+    # ── identity ──────────────────────────────────────────────────────────────
+    sn         = Column(String, unique=True, index=True)  # serial number (from CVSecurity)
+    name       = Column(String, default='')               # device name (from CVSecurity)
     ip_address = Column(String, default='')
-    terminal_name = Column(String, default='')          # model e.g. SpeedFace-V3L
-    fw_ver = Column(String, default='')                 # firmware version
     # ── live status ───────────────────────────────────────────────────────────
-    terminal_state = Column(Integer, default=0)         # 1=online, 2=disabled, 3=offline
-    online = Column(Boolean, default=False)             # derived: terminal_state == 1
-    last_activity = Column(String, default='')          # last seen timestamp string
+    online      = Column(Boolean, default=False)
+    # ── door state (polled every cycle) ───────────────────────────────────────
+    door_opened = Column(Boolean, default=False)          # Modbus bit+1
+    door_closed = Column(Boolean, default=True)           # Modbus bit+2
     # ── modbus mapping (user-configured) ──────────────────────────────────────
-    slot_no         = Column(Integer, default=None, index=True) # device slot 0-4 within the register
-    modbus_register = Column(Integer, default=None)             # actual register e.g. 40000
-    # ── door state (polled / event-driven) ────────────────────────────────────
-    door_opened = Column(Boolean, default=False)        # Modbus bit+1: Door Open
-    door_closed = Column(Boolean, default=True)         # Modbus bit+2: Door Closed
-    # ── statistics ────────────────────────────────────────────────────────────
-    user_count = Column(Integer, default=0)
-    transaction_count = Column(Integer, default=0)
+    slot_no         = Column(Integer, default=None, index=True)  # slot 0-4 within register
+    modbus_register = Column(Integer, default=None)              # e.g. 40000
     updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ZkAccessTransaction(Base):
+    """Access control transaction history polled from CVSecurity."""
+    __tablename__ = 'zk_access_transaction'
+
+    id          = Column(Integer, primary_key=True)
+    event_id    = Column(String, index=True)         # CVSecurity transaction id
+    event_time  = Column(String, index=True)         # 'YYYY-MM-DD HH:MM:SS'
+    pin         = Column(String, default='')         # person PIN
+    name        = Column(String, default='')         # person name
+    card_no     = Column(String, default='')
+    dev_sn      = Column(String, index=True)         # device serial number
+    dev_name    = Column(String, default='')
+    event_name  = Column(String, default='')         # e.g. 'Normal Verify Open'
+    reader_name = Column(String, default='')
+    area_name   = Column(String, default='')
+    created_at  = Column(DateTime, default=datetime.utcnow)
 
 
 class User(Base):

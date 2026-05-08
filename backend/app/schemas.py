@@ -9,7 +9,6 @@ class UpdateCameraStatusRequest(BaseModel):
 
 
 class UpdateZkDeviceRequest(BaseModel):
-    alias: str | None = None
     ip_address: str | None = None
     slot_no: int | None = None             # device slot 0-4 within the register
     modbus_register: int | None = None     # actual register number e.g. 40000
