@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import CameraStatus, NvrStatus, ZkDeviceStatus
+from app.models import CameraStatus, NvrStatus, ZkDeviceStatus, ZkAccessTransaction
 import socket
 import time
 
@@ -69,19 +69,21 @@ def healthcheck():
         results['hikcentral'] = {'ok': False, 'error': str(e), 'base_url': settings.hikcentral.base_url}
         overall = False
 
-    # --- ZK BioTime -----------------------------------------------------------
+    # --- ZK CVSecurity -------------------------------------------------------
+    # Verify connectivity by calling a lightweight list endpoint with access_token
     try:
         import requests as _req
-        r = _req.post(
-            f"{settings.zkbio.base_url.rstrip('/')}/jwt-api-token-auth/",
-            json={'username': settings.zkbio.username, 'password': settings.zkbio.password},
+        r = _req.get(
+            f"{settings.zkbio.base_url.rstrip('/')}/api/device/accList",
+            params={'access_token': settings.zkbio.access_token, 'pageNo': 1, 'pageSize': 1},
             timeout=5,
         )
-        token_ok = bool(r.json().get('token'))
-        if token_ok:
+        body = r.json()
+        if r.ok and body.get('code', -1) == 0:
             results['zkbio'] = {'ok': True, 'base_url': settings.zkbio.base_url}
         else:
-            results['zkbio'] = {'ok': False, 'error': 'no token in response', 'base_url': settings.zkbio.base_url}
+            results['zkbio'] = {'ok': False, 'error': f"code={body.get('code')} {body.get('message', '')}",
+                                'base_url': settings.zkbio.base_url}
             overall = False
     except Exception as e:
         results['zkbio'] = {'ok': False, 'error': str(e), 'base_url': settings.zkbio.base_url}
@@ -132,29 +134,64 @@ def get_cameras():
 
 @router.get('/api/zk/devices')
 def get_zk_devices():
-    """List all ZK access controllers with live status polled from BioTime."""
+    """List all ZK access controllers with live status polled from CVSecurity."""
     db: Session = SessionLocal()
     try:
         items = db.query(ZkDeviceStatus).order_by(ZkDeviceStatus.id).all()
         return [
             {
                 'sn': d.sn,
-                'alias': d.alias,
-                'area': d.area,
+                'name': d.name,
                 'ip_address': d.ip_address,
-                'terminal_name': d.terminal_name,
-                'fw_ver': d.fw_ver,
-                'terminal_state': d.terminal_state,
                 'online': d.online,
                 'door_opened': d.door_opened,
                 'door_closed': d.door_closed,
-                'last_activity': d.last_activity,
-                'user_count': d.user_count,
-                'transaction_count': d.transaction_count,
+                'slot_no': d.slot_no,
+                'modbus_register': d.modbus_register,
                 'updated_at': d.updated_at,
             }
             for d in items
         ]
+    finally:
+        db.close()
+
+
+@router.get('/api/zk/transactions')
+def get_zk_transactions(
+    limit: int = 100,
+    offset: int = 0,
+    dev_sn: str | None = None,
+):
+    """List ZK access transaction history (newest first)."""
+    db: Session = SessionLocal()
+    try:
+        q = db.query(ZkAccessTransaction)
+        if dev_sn:
+            q = q.filter(ZkAccessTransaction.dev_sn == dev_sn)
+        total = q.count()
+        items = q.order_by(ZkAccessTransaction.id.desc()).offset(offset).limit(limit).all()
+        return {
+            'total': total,
+            'offset': offset,
+            'limit': limit,
+            'transactions': [
+                {
+                    'id': t.id,
+                    'event_id': t.event_id,
+                    'event_time': t.event_time,
+                    'pin': t.pin,
+                    'name': t.name,
+                    'card_no': t.card_no,
+                    'dev_sn': t.dev_sn,
+                    'dev_name': t.dev_name,
+                    'event_name': t.event_name,
+                    'reader_name': t.reader_name,
+                    'area_name': t.area_name,
+                    'created_at': t.created_at,
+                }
+                for t in items
+            ],
+        }
     finally:
         db.close()
 
@@ -237,7 +274,7 @@ def get_register_map():
                     {
                         'id': d.id,
                         'sn': d.sn,
-                        'alias': d.alias,
+                        'name': d.name,
                         'ip_address': d.ip_address,
                         'modbus_register': d.modbus_register,
                         'slot_no': d.slot_no,

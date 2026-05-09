@@ -24,6 +24,5 @@ bacnet:
 
 zkbio:
   base_url: https://into-liz-writings-ireland.trycloudflare.com
-  username: admin
-  password: P@ssw0rd
+  access_token: "<your-cvsecurity-api-token>"  # System Management → API Authorization → Client Secret
   page_size: 100

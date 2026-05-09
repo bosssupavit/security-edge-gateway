@@ -115,7 +115,7 @@ def get_zk_list(
             {
                 'id': x.id,
                 'sn': x.sn,
-                'alias': x.alias,
+                'name': x.name,
                 'ip_address': x.ip_address,
                 'modbus_register': x.modbus_register,
                 'slot_no': x.slot_no,
@@ -143,18 +143,11 @@ def get_zk_device(
         return {
             'id': item.id,
             'sn': item.sn,
-            'alias': item.alias,
-            'area': item.area,
+            'name': item.name,
             'ip_address': item.ip_address,
-            'terminal_name': item.terminal_name,
-            'fw_ver': item.fw_ver,
-            'terminal_state': item.terminal_state,
             'online': item.online,
             'door_opened': item.door_opened,
             'door_closed': item.door_closed,
-            'last_activity': item.last_activity,
-            'user_count': item.user_count,
-            'transaction_count': item.transaction_count,
             'slot_no': item.slot_no,
             'modbus_register': item.modbus_register,
             'updated_at': item.updated_at,
@@ -169,14 +162,12 @@ def update_zk_device(
     payload: UpdateZkDeviceRequest,
     current_user=Depends(get_current_user),
 ):
-    """Update alias, ip_address, and/or slot_no (Modbus register slot) of a ZK device."""
+    """Update ip_address and/or slot_no / modbus_register (Modbus mapping) of a ZK device."""
     db: Session = SessionLocal()
     try:
         item = db.query(ZkDeviceStatus).filter(ZkDeviceStatus.id == device_id).first()
         if not item:
             raise HTTPException(404, 'ZK device not found')
-        if payload.alias is not None:
-            item.alias = payload.alias
         if payload.ip_address is not None:
             item.ip_address = payload.ip_address
         if payload.slot_no is not None:
@@ -187,7 +178,7 @@ def update_zk_device(
         return {
             'status': 'updated',
             'id': device_id,
-            'alias': item.alias,
+            'name': item.name,
             'ip_address': item.ip_address,
             'modbus_register': item.modbus_register,
             'slot_no': item.slot_no,
