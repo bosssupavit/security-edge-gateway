@@ -66,15 +66,18 @@ def health():
 # ── Serve built React frontend ────────────────────────────────────────────────
 # Resolve the frontend/dist directory whether running normally or as a PyInstaller bundle.
 if getattr(sys, 'frozen', False):
-    # PyInstaller: files are extracted to sys._MEIPASS
-    _STATIC_DIR = Path(sys._MEIPASS) / 'static'
+    # PyInstaller extracts data files to sys._MEIPASS.
+    # The spec bundles static/frontend → static/frontend inside the bundle.
+    _STATIC_DIR = Path(sys._MEIPASS) / 'static' / 'frontend'
 else:
     # Dev: vite builds into backend/static/frontend
     _STATIC_DIR = Path(__file__).parent.parent / 'static' / 'frontend'
 
 if _STATIC_DIR.exists():
-    # Serve hashed JS/CSS/image assets
-    app.mount('/assets', StaticFiles(directory=_STATIC_DIR / 'assets'), name='assets')
+    # Serve hashed JS/CSS/image assets (only mount if the folder exists)
+    _assets_dir = _STATIC_DIR / 'assets'
+    if _assets_dir.exists():
+        app.mount('/assets', StaticFiles(directory=_assets_dir), name='assets')
 
     @app.get('/{full_path:path}', include_in_schema=False)
     def serve_spa(full_path: str):

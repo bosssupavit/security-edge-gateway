@@ -12,7 +12,7 @@ export default function CameraMonitoring() {
   const fetchCameras = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8099/api/cameras', {
+      const response = await fetch('/api/cameras', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch cameras');
@@ -46,7 +46,7 @@ export default function CameraMonitoring() {
         channel_no: selectedCamera.channel_no !== '' && selectedCamera.channel_no !== null ? parseInt(selectedCamera.channel_no) : null,
       };
 
-      const response = await fetch(`http://localhost:8099/api/devices/cameras/${selectedCamera.id}`, {
+      const response = await fetch(`/api/devices/cameras/${selectedCamera.id}`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,

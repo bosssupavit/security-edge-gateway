@@ -55,6 +55,7 @@ class ZkBioClient:
         self._page_size = page_size
         self._session = requests.Session()
         self._session.headers.update({'Content-Type': 'application/json'})
+        self._session.verify = False
 
     # ─── internal helpers ────────────────────────────────────────────────────
 

@@ -14,8 +14,8 @@ export default function AccessControl() {
       const headers = { 'Authorization': `Bearer ${token}` };
       
       const [statusRes, configRes] = await Promise.all([
-        fetch('http://localhost:8099/api/zk/devices', { headers }),
-        fetch('http://localhost:8099/api/devices/zk', { headers })
+        fetch('/api/zk/devices', { headers }),
+        fetch('/api/devices/zk', { headers })
       ]);
       
       if (!statusRes.ok || !configRes.ok) {
@@ -59,7 +59,7 @@ export default function AccessControl() {
         slot_no: selectedDoor.slot_no !== '' && selectedDoor.slot_no !== null ? parseInt(selectedDoor.slot_no) : null,
       };
 
-      const response = await fetch(`http://localhost:8099/api/devices/zk/${selectedDoor.id}`, {
+      const response = await fetch(`/api/devices/zk/${selectedDoor.id}`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,

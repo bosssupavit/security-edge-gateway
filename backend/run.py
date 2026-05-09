@@ -1,5 +1,11 @@
 import threading
+import warnings
+import urllib3
 import uvicorn
+
+# Suppress InsecureRequestWarning from requests/httpx when verify=False
+warnings.filterwarnings('ignore', category=urllib3.exceptions.InsecureRequestWarning)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.main import app
 from app.services.poller import start_polling

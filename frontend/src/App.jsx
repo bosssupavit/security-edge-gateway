@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Home from './pages/Home';
+import { publicPost } from './services/api';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -16,11 +17,7 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:8099/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken })
-      });
+      const response = await publicPost('/api/auth/refresh', { refresh_token: refreshToken });
 
       if (response.ok) {
         const data = await response.json();

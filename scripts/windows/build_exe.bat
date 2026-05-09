@@ -56,13 +56,23 @@ if %errorLevel% neq 0 (
 copy /Y "%PROJECT_ROOT%\backend\config.yaml" "%PROJECT_ROOT%\backend\dist\config.yaml" >nul
 echo [OK] config.yaml copied to dist\
 
+:: ── Copy auto-restart launcher ────────────────────────────────────────────────
+copy /Y "%PROJECT_ROOT%\backend\Start.bat" "%PROJECT_ROOT%\backend\dist\Start.bat" >nul
+echo [OK] Start.bat (auto-restart launcher) copied to dist\
+
 echo.
 echo ============================================================
 echo  Build complete!
 echo.
 echo  Portable package is in:  backend\dist\
-echo    SecurityEdgeGateway.exe   <- run this
-echo    config.yaml               <- edit settings here
+echo    Start.bat                 ^<-- double-click to run (auto-restart)
+echo    SecurityEdgeGateway.exe   ^<-- main executable
+echo    config.yaml               ^<-- edit settings here
+echo    gateway-crash.log         ^<-- crash log (created automatically)
+echo.
+echo  NOTE: gateway.db (SQLite) will be created in the same folder on first run
+echo ============================================================
+pause
 echo.
 echo  The exe bundles:
 echo    - FastAPI backend
