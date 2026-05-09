@@ -28,13 +28,13 @@ cd /d "%PROJECT_ROOT%\backend"
 
 if not exist "venv" (
     echo [Backend] Creating virtual environment...
-    python -m venv venv
+    py -3.12 -m venv venv
 ) else (
     echo [Backend] venv already exists, skipping.
 )
 
 echo [Backend] Installing Python packages...
-venv\Scripts\pip install -r requirements.txt --quiet
+venv\Scripts\pip install -r requirements.txt
 
 :: ── Backend: migrate DB ───────────────────────────────────────────────────────
 echo [Backend] Running database migration...

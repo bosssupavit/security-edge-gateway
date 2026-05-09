@@ -16,7 +16,7 @@ class CameraStatus(Base):
     online = Column(Boolean, default=False)                 # derived: status == 1
     # ── modbus mapping (user-configured) ─────────────────────────────────────
     channel_no      = Column(Integer, default=None, index=True)  # bit 0-15 within the register
-    modbus_register = Column(Integer, default=None)              # actual register e.g. 40010
+    modbus_register = Column(Integer, default=None)              # actual register e.g. 40009
     # ── device info ───────────────────────────────────────────────────────────
     capability_set = Column(String, default='')             # e.g. "ptz,event_pdc"
     encode_dev_index_code = Column(String, default='')      # parent NVR/DVR index code
@@ -67,7 +67,7 @@ class ZkDeviceStatus(Base):
     unlocked    = Column(Boolean, default=False)          # relay==1: lock command active
     # ── modbus mapping (user-configured) ──────────────────────────────────────
     slot_no         = Column(Integer, default=None, index=True)  # slot 0-4 within register
-    modbus_register = Column(Integer, default=None)              # e.g. 40000
+    modbus_register = Column(Integer, default=None)              # e.g. 40001 (40001-based standard PLC notation)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 

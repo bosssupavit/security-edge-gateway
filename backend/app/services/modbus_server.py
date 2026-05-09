@@ -64,38 +64,15 @@ MODBUS_HOST = getattr(settings.app, 'modbus_host', '0.0.0.0')
 MODBUS_PORT = getattr(settings.app, 'modbus_port', 502)
 UNIT_ID = 1
 
-_TOTAL_REGS = 65536
-
 # -- shared datastore ---------------------------------------------------------
-_hr_block = ModbusSequentialDataBlock(0, [0] * _TOTAL_REGS)
-_ir_block = ModbusSequentialDataBlock(0, [0] * _TOTAL_REGS)
+_hr_block = ModbusSequentialDataBlock(0, [0] * 65536)
+_ir_block = ModbusSequentialDataBlock(0, [0] * 65536)
 _slave = ModbusSlaveContext(hr=_hr_block, ir=_ir_block)
-_context = ModbusServerContext(slaves={UNIT_ID: _slave}, single=False)
+# single=True: respond to ANY unit/slave ID (BAS clients often use 0xFF=255)
+_context = ModbusServerContext(slaves=_slave, single=True)
 
 
 # -- FC03 Block A: ZK Access Control ------------------------------------------
-
-def _build_acc_registers(doors):
-    """
-    Build ACC_NUM_REGS register values from list of (slot_no, online, opened, closed).
-    Bits start at 0 — all signals default to 0.
-    """
-    regs = [0] * ACC_NUM_REGS
-    for slot_no, online, opened, closed in doors:
-        reg_offset = slot_no // ACC_DEVICES_PER_REG
-        bit_offset = (slot_no % ACC_DEVICES_PER_REG) * ACC_BITS_PER_DEVICE
-        if reg_offset >= ACC_NUM_REGS:
-            logger.warning('[modbus] ACC slot_no=%d out of range (max %d)',
-                           slot_no, ACC_NUM_REGS * ACC_DEVICES_PER_REG - 1)
-            continue
-        if online:
-            regs[reg_offset] |= (1 << (bit_offset + 0))
-        if opened:
-            regs[reg_offset] |= (1 << (bit_offset + 1))
-        if closed:
-            regs[reg_offset] |= (1 << (bit_offset + 2))
-    return regs
-
 
 def _refresh_acc_hr(db):
     """Compute ZK access control bitmask from stored modbus_register + slot_no."""
@@ -117,7 +94,7 @@ def _refresh_acc_hr(db):
         if d.door_closed:
             regs[reg_index] |= (1 << (bit_offset + 2))
 
-    _context[UNIT_ID].setValues(3, ACC_HR_BASE, regs)
+    _context[0].setValues(3, ACC_HR_BASE, regs)
     online_count = sum(1 for d in devices if d.online)
     logger.debug('[modbus] ACC HR: %d/%d online | regs 40000-40007 = %s',
                  online_count, len(devices), [hex(r) for r in regs])
@@ -125,40 +102,23 @@ def _refresh_acc_hr(db):
 
 # -- FC03 Block B: CCTV cameras -----------------------------------------------
 
-def _build_cctv_registers(cameras_online):
-    """
-    Build CCTV_NUM_REGS register values from {channel_no: online}.
-    Bit = 0 means online.  Bit = 1 means offline (default/fault).
-    """
-    regs = [0xFFFF] * CCTV_NUM_REGS
-    for channel_no, online in cameras_online.items():
-        reg_offset = channel_no // CCTV_CAMERAS_PER_REG
-        bit_pos    = channel_no % CCTV_CAMERAS_PER_REG
-        if reg_offset >= CCTV_NUM_REGS:
-            logger.warning('[modbus] channel_no=%d exceeds CCTV spec range', channel_no)
-            continue
-        if online:
-            regs[reg_offset] &= ~(1 << bit_pos)   # clear bit -> online
-    return regs
-
-
 def _refresh_cctv_hr(db):
     """Compute CCTV bitmask from stored modbus_register + channel_no."""
-    regs = [0xFFFF] * CCTV_NUM_REGS
+    regs = [0x0000] * CCTV_NUM_REGS  # default: all offline (bit=0)
     cameras = db.query(CameraStatus).filter(
         CameraStatus.modbus_register.isnot(None),
         CameraStatus.channel_no.isnot(None),
     ).all()
     for c in cameras:
-        reg_index = c.modbus_register - 40000 - CCTV_HR_BASE  # e.g. 40010->0, 40011->1
-        bit_pos = c.channel_no  # 0-15 within this register
+        reg_index = c.modbus_register - 40010  # 40010->0, 40011->1, ...
+        bit_pos = c.channel_no % CCTV_CAMERAS_PER_REG  # 0-15 within this register
         if reg_index < 0 or reg_index >= CCTV_NUM_REGS:
             logger.warning('[modbus] Camera id=%d register=%d out of range', c.id, c.modbus_register)
             continue
         if c.online:
-            regs[reg_index] &= ~(1 << bit_pos)  # clear bit -> online
+            regs[reg_index] |= (1 << bit_pos)   # set bit = 1 -> online
 
-    _context[UNIT_ID].setValues(3, CCTV_HR_BASE, regs)
+    _context[0].setValues(3, CCTV_HR_BASE, regs)
     online_count = sum(1 for c in cameras if c.online)
     logger.debug('[modbus] CCTV HR: %d/%d online | regs 40010-40020 = %s',
                  online_count, len(cameras), [hex(r) for r in regs])
