@@ -1,21 +1,39 @@
 # -*- mode: python ; coding: utf-8 -*-
+# Security Edge Gateway — PyInstaller spec
+# Windows build:  pyinstaller SecurityEdgeGateway.spec
+# config.yaml and gateway.db live NEXT TO the exe (not bundled).
+
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('app/templates', 'app/templates'), ('static/frontend', 'static/frontend'), ('config.yaml', '.')]
+datas = [
+    ('app/templates',   'app/templates'),
+    ('static/frontend', 'static/frontend'),
+]
 binaries = []
-hiddenimports = ['uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto', 'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto', 'uvicorn.lifespan', 'uvicorn.lifespan.on']
-tmp_ret = collect_all('sqlalchemy')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('sqlalchemy.dialects')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('passlib')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('jose')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('pymodbus')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('bac0')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+hiddenimports = [
+    # SQLAlchemy
+    'sqlalchemy.dialects.sqlite',
+    'sqlalchemy.dialects.sqlite.pysqlite',
+    'sqlalchemy.orm',
+    'sqlalchemy.ext.declarative',
+    # Auth
+    'passlib.handlers.bcrypt',
+    'jose', 'jose.jwt',
+    # Uvicorn
+    'uvicorn.logging',
+    'uvicorn.loops', 'uvicorn.loops.auto',
+    'uvicorn.protocols',
+    'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
+    'uvicorn.protocols.http.h11_impl',
+    'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto',
+    'uvicorn.lifespan', 'uvicorn.lifespan.on',
+    # Other
+    'multipart', 'xmltodict', 'yaml',
+]
+
+for _pkg in ('sqlalchemy', 'passlib', 'jose', 'pymodbus', 'bac0'):
+    _d, _b, _h = collect_all(_pkg)
+    datas += _d; binaries += _b; hiddenimports += _h
 
 
 a = Analysis(
