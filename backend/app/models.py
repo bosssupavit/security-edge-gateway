@@ -51,13 +51,20 @@ class ZkDeviceStatus(Base):
     id = Column(Integer, primary_key=True)
     # ── identity ──────────────────────────────────────────────────────────────
     sn         = Column(String, unique=True, index=True)  # serial number (from CVSecurity)
-    name       = Column(String, default='')               # device name (from CVSecurity)
+    zk_id      = Column(String, default='', index=True)   # internal CVSecurity device id (for door matching)
+    name       = Column(String, default='')               # device name e.g. "ACC041-ACC-01-PD"
+    device_type= Column(String, default='')               # model e.g. "SenseFace 3A"
     ip_address = Column(String, default='')
+    # ── door identity (polled from allDoorState) ──────────────────────────────
+    door_zk_id = Column(String, default='')               # door's CVSecurity id
+    door_name  = Column(String, default='')               # door name e.g. "Corridoor-Mixing"
     # ── live status ───────────────────────────────────────────────────────────
     online      = Column(Boolean, default=False)
+    alarm       = Column(String, default='0')             # "0"=none, "2"=alarm active
     # ── door state (polled every cycle) ───────────────────────────────────────
-    door_opened = Column(Boolean, default=False)          # Modbus bit+1
-    door_closed = Column(Boolean, default=True)           # Modbus bit+2
+    door_opened = Column(Boolean, default=False)          # sensor==1: physically open
+    door_closed = Column(Boolean, default=True)           # sensor==0: physically closed
+    unlocked    = Column(Boolean, default=False)          # relay==1: lock command active
     # ── modbus mapping (user-configured) ──────────────────────────────────────
     slot_no         = Column(Integer, default=None, index=True)  # slot 0-4 within register
     modbus_register = Column(Integer, default=None)              # e.g. 40000

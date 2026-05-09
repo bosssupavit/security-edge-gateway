@@ -77,6 +77,7 @@ def healthcheck():
             f"{settings.zkbio.base_url.rstrip('/')}/api/device/accList",
             params={'access_token': settings.zkbio.access_token, 'pageNo': 1, 'pageSize': 1},
             timeout=5,
+            verify=False,
         )
         body = r.json()
         if r.ok and body.get('code', -1) == 0:
@@ -142,10 +143,15 @@ def get_zk_devices():
             {
                 'sn': d.sn,
                 'name': d.name,
+                'device_type': d.device_type,
+                'door_name': d.door_name,
+                'door_zk_id': d.door_zk_id,
                 'ip_address': d.ip_address,
                 'online': d.online,
+                'alarm': d.alarm,
                 'door_opened': d.door_opened,
                 'door_closed': d.door_closed,
+                'unlocked': d.unlocked,
                 'slot_no': d.slot_no,
                 'modbus_register': d.modbus_register,
                 'updated_at': d.updated_at,

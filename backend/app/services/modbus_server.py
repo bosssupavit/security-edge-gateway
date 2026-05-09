@@ -167,13 +167,21 @@ def _refresh_cctv_hr(db):
 # -- main refresh -------------------------------------------------------------
 
 def refresh_registers():
-    """Pull latest status from DB and update all HR blocks."""
+    """Pull latest status from DB and update all HR blocks.
+
+    Each block is isolated so a failure in one does not prevent the others
+    from updating (same crash-isolation pattern used in the poller).
+    """
     db = SessionLocal()
     try:
-        _refresh_acc_hr(db)    # FC03 addr 0  (40000-40007)  ZK door status
-        _refresh_cctv_hr(db)   # FC03 addr 9  (40010-40020)  CCTV status
-    except Exception as exc:
-        logger.error('[modbus] refresh_registers error: %s', exc)
+        for label, fn in [
+            ('acc_hr',  lambda: _refresh_acc_hr(db)),   # FC03 addr 0  (40000-40007)  ZK door status
+            ('cctv_hr', lambda: _refresh_cctv_hr(db)),  # FC03 addr 9  (40010-40020)  CCTV status
+        ]:
+            try:
+                fn()
+            except Exception as exc:
+                logger.error('[modbus] %s refresh error: %s', label, exc)
     finally:
         db.close()
 

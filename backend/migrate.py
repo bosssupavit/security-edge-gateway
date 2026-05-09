@@ -206,6 +206,14 @@ def main():
     print('zk_device_status — migrating to CVSecurity schema (rebuild):')
     _migrate_zk_device_status(cur)
 
+    print('zk_device_status — adding door identity & alarm columns:')
+    add_column(cur, 'zk_device_status', 'door_zk_id',   'TEXT DEFAULT ""')
+    add_column(cur, 'zk_device_status', 'door_name',    'TEXT DEFAULT ""')
+    add_column(cur, 'zk_device_status', 'alarm',        'TEXT DEFAULT "0"')
+    add_column(cur, 'zk_device_status', 'zk_id',        'TEXT DEFAULT ""')
+    add_column(cur, 'zk_device_status', 'device_type',  'TEXT DEFAULT ""')
+    add_column(cur, 'zk_device_status', 'unlocked',     'INTEGER DEFAULT 0')
+
     print('zk_access_transaction — creating table if not exists:')
     cur.execute(ZK_TRANSACTION_CREATE_SQL)
     cur.execute("CREATE INDEX IF NOT EXISTS ix_zk_access_transaction_event_id ON zk_access_transaction (event_id)")

@@ -6,7 +6,7 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models import CameraStatus, NvrStatus, ZkDeviceStatus, ZkAccessTransaction
 from app.services.hikcentral_client import HikCentralClient
-from app.services.zk_client import ZkBioClient, _parse_door_state
+from app.services.zk_client import ZkBioClient
 
 
 client = HikCentralClient(
@@ -94,40 +94,42 @@ def _sync_zk_devices(db):
             row = ZkDeviceStatus(sn=sn)
             db.add(row)
 
-        row.name       = dev.get('name', '')
-        row.online     = dev.get('online', False)
-        row.updated_at = datetime.utcnow()
+        row.zk_id       = dev.get('zk_id', '')
+        row.name        = dev.get('name', '')
+        row.device_type = dev.get('device_type', '')
+        row.online      = dev.get('online', False)
+        row.updated_at  = datetime.utcnow()
 
     print(f'[poller] synced {len(devices)} ZK devices')
 
 
 def _sync_zk_door_states(db):
     """
-    §2.11.1  Poll CVSecurity for door states and update door_opened/door_closed
-    on the matching ZkDeviceStatus row (matched by IP prefix of door name).
+    §2.11.1  Poll CVSecurity for door states and update matched ZkDeviceStatus rows.
+
+    Match key: door.zk_device_id == ZkDeviceStatus.zk_id  (both are CVSecurity internal IDs).
+    get_all_door_states() now returns parsed dicts (via _paginate + _parse_door_state).
     """
-    raw_states = zk_client.get_all_door_states()
-    if not raw_states:
+    states = zk_client.get_all_door_states()
+    if not states:
         return
 
-    # Build ip_address -> ZkDeviceStatus lookup
     rows = db.query(ZkDeviceStatus).all()
-    ip_map: dict[str, ZkDeviceStatus] = {r.ip_address: r for r in rows if r.ip_address}
+    zk_id_map: dict[str, ZkDeviceStatus] = {r.zk_id: r for r in rows if r.zk_id}
 
     updated = 0
-    for raw in raw_states:
-        state = _parse_door_state(raw)
-        door_name = state.get('name', '')
-
-        # Door name from CVSecurity is typically "<ip>-<door_no>" e.g. "192.168.1.1-1"
-        ip_part = door_name.rsplit('-', 1)[0]
-        matched_row = ip_map.get(ip_part)
+    for state in states:
+        matched_row = zk_id_map.get(state['zk_device_id'])
         if matched_row is None:
             continue
 
+        matched_row.door_zk_id  = state['id']
+        matched_row.door_name   = state['name'] or matched_row.door_name
         matched_row.door_opened = state['door_opened']
         matched_row.door_closed = state['door_closed']
+        matched_row.unlocked    = state['unlocked']
         matched_row.online      = state['online']
+        matched_row.alarm       = state['alarm']
         matched_row.updated_at  = datetime.utcnow()
         updated += 1
 
@@ -175,14 +177,20 @@ def polling_loop():
     while True:
         db = SessionLocal()
         try:
-            _sync_nvr(db)
-            _sync_cameras(db)
-            _sync_zk_devices(db)
-            _sync_zk_door_states(db)
-            _sync_zk_transactions(db)
+            for label, fn in [
+                ('nvr',            lambda: _sync_nvr(db)),
+                ('cameras',        lambda: _sync_cameras(db)),
+                ('zk_devices',     lambda: _sync_zk_devices(db)),
+                ('zk_door_states', lambda: _sync_zk_door_states(db)),
+                # ('zk_transactions', lambda: _sync_zk_transactions(db)),
+            ]:
+                try:
+                    fn()
+                except Exception as e:
+                    print(f'[poller] {label} error: {e}')
             db.commit()
         except Exception as e:
-            print('[poller]', e)
+            print('[poller] commit error:', e)
         finally:
             db.close()
 

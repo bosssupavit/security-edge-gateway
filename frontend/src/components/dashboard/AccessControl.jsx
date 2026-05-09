@@ -12,25 +12,12 @@ export default function AccessControl() {
     try {
       const token = localStorage.getItem('access_token');
       const headers = { 'Authorization': `Bearer ${token}` };
-      
-      const [statusRes, configRes] = await Promise.all([
-        fetch('/api/zk/devices', { headers }),
-        fetch('/api/devices/zk', { headers })
-      ]);
-      
-      if (!statusRes.ok || !configRes.ok) {
-        throw new Error('Failed to fetch access control data');
-      }
-      
-      const statusData = await statusRes.json();
-      const configData = await configRes.json();
-      
-      const merged = configData.map(cfg => {
-        const stat = statusData.find(s => s.sn === cfg.sn) || {};
-        return { ...cfg, ...stat };
-      });
-      
-      setDoors(merged);
+
+      const res = await fetch('/api/devices/zk', { headers });
+      if (!res.ok) throw new Error('Failed to fetch access control data');
+
+      const data = await res.json();
+      setDoors(data);
       setError(null);
     } catch (err) {
       console.error(err);
@@ -53,7 +40,6 @@ export default function AccessControl() {
     try {
       const token = localStorage.getItem('access_token');
       const payload = {
-        alias: selectedDoor.alias,
         ip_address: selectedDoor.ip_address,
         modbus_register: selectedDoor.modbus_register ? parseInt(selectedDoor.modbus_register) : null,
         slot_no: selectedDoor.slot_no !== '' && selectedDoor.slot_no !== null ? parseInt(selectedDoor.slot_no) : null,
@@ -83,7 +69,8 @@ export default function AccessControl() {
   const filteredDoors = doors.filter(door => {
     if (!searchQuery) return true;
     const search = searchQuery.toLowerCase();
-    return (door.alias && door.alias.toLowerCase().includes(search)) || 
+    const displayName = door.door_name || door.name || '';
+    return displayName.toLowerCase().includes(search) ||
            (door.ip_address && door.ip_address.toLowerCase().includes(search));
   });
 
@@ -122,24 +109,30 @@ export default function AccessControl() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 max-h-[300px] overflow-y-auto pr-2">
             {filteredDoors.map((door) => {
               const isOpen = door.door_opened;
+              const hasAlarm = door.alarm === '2' || door.alarm === 2;
+              const displayName = door.door_name || door.name || 'Unknown Door';
               return (
                 <div
                   key={door.id}
                   onClick={() => setSelectedDoor(door)}
-                  className="rounded-xl border border-slate-200 bg-white p-3 transition-all hover:shadow-md hover:border-violet-300 cursor-pointer"
+                  className={`rounded-xl border bg-white p-3 transition-all hover:shadow-md cursor-pointer ${
+                    hasAlarm ? 'border-rose-300 bg-rose-50 hover:border-rose-400' : 'border-slate-200 hover:border-violet-300'
+                  }`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-sm font-semibold text-slate-800">
-                        {door.alias || door.terminal_name || 'Unknown Door'}
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-2 text-[11px] font-medium text-slate-500">
-                        <span>State:</span>
+                      <div className="text-sm font-semibold text-slate-800">{displayName}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400 font-mono">{door.sn}</div>
+                      <div className="mt-1 flex items-center gap-2 text-[11px] font-medium text-slate-500">
+                        <span>Door:</span>
                         <span className={`capitalize ${isOpen ? 'text-amber-600' : 'text-slate-700'}`}>
                           {isOpen ? 'Open' : 'Closed'}
                         </span>
+                        {hasAlarm && (
+                          <span className="text-rose-600 font-bold">⚠ Alarm</span>
+                        )}
                       </div>
-                      <div className="mt-1 flex items-center gap-2 text-[11px] font-medium text-slate-500">
+                      <div className="mt-0.5 flex items-center gap-2 text-[11px] font-medium text-slate-500">
                         <span>Modbus:</span>
                         <span className={door.modbus_register !== null ? 'text-violet-600' : 'text-slate-400'}>
                           {door.modbus_register !== null ? `HR ${door.modbus_register}:${door.slot_no}` : 'Not Mapped'}
@@ -178,7 +171,8 @@ export default function AccessControl() {
             <div className="p-6">
               <div className="flex items-start justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{selectedDoor.alias || selectedDoor.terminal_name || 'Unknown Door'}</h3>
+                  <h3 className="text-xl font-bold text-slate-900">{selectedDoor.door_name || selectedDoor.name || 'Unknown Door'}</h3>
+                  <p className="text-sm text-slate-400 font-mono text-xs mt-0.5">{selectedDoor.sn}</p>
                   <p className="text-sm text-slate-500 mt-1">Door Controller Details & Mapping</p>
                 </div>
                 <button 
@@ -204,6 +198,18 @@ export default function AccessControl() {
                   <span className={`text-sm font-bold capitalize ${selectedDoor.door_opened ? 'text-amber-600' : 'text-slate-700'}`}>
                     {selectedDoor.door_opened ? 'OPEN' : 'CLOSED'}
                   </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-medium text-slate-500">Alarm</span>
+                  <span className={`text-sm font-bold ${
+                    selectedDoor.alarm === '2' || selectedDoor.alarm === 2 ? 'text-rose-600' : 'text-emerald-600'
+                  }`}>
+                    {selectedDoor.alarm === '2' || selectedDoor.alarm === 2 ? 'ALARM ACTIVE' : 'Normal'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-medium text-slate-500">Device Name</span>
+                  <span className="text-sm font-medium text-slate-900">{selectedDoor.name || '-'}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-slate-100">
                   <span className="text-sm font-medium text-slate-500">IP Address</span>
@@ -282,13 +288,12 @@ export default function AccessControl() {
               <form onSubmit={handleUpdateDoor}>
                 <div className="space-y-4 mb-8">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Door Alias</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Door Name (from ZKBio)</label>
                     <input 
                       type="text"
-                      value={selectedDoor.alias || ''}
-                      onChange={(e) => setSelectedDoor({...selectedDoor, alias: e.target.value})}
-                      placeholder="e.g. Back Entrance"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all text-slate-900 placeholder:text-slate-400"
+                      value={selectedDoor.door_name || ''}
+                      disabled
+                      className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
