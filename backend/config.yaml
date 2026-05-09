@@ -3,7 +3,7 @@ app:
   port: 8099
   poll_interval_sec: 5
   modbus_host: 0.0.0.0
-  modbus_port: 5020
+  modbus_port: 502
 
 hikcentral:
   base_url: https://cherry-images-habits-journalist.trycloudflare.com
@@ -23,6 +23,6 @@ bacnet:
   device_id: 4001
 
 zkbio:
-  base_url: https://into-liz-writings-ireland.trycloudflare.com
+  base_url: https://localhos
   access_token: "<your-cvsecurity-api-token>"  # System Management → API Authorization → Client Secret
   page_size: 100

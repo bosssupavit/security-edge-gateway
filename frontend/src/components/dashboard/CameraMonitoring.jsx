@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function CameraMonitoring() {
   const [cameras, setCameras] = useState([]);
@@ -179,8 +180,8 @@ export default function CameraMonitoring() {
       </div>
 
       {/* Camera Details Modal */}
-      {selectedCamera && !isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      {selectedCamera && !isEditModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
             <div className="p-6">
               <div className="flex items-start justify-between mb-6">
@@ -249,11 +250,11 @@ export default function CameraMonitoring() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Edit Camera Config Modal */}
-      {isEditModalOpen && selectedCamera && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      {isEditModalOpen && selectedCamera && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
             <div className="p-6">
               <div className="flex items-start justify-between mb-6">
@@ -346,7 +347,7 @@ export default function CameraMonitoring() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }
