@@ -1,37 +1,60 @@
 import React, { useState } from 'react';
 
 export default function Login({ onLoginSuccess }) {
-  const [username, setUsername] = useState('user1');
-  const [password, setPassword] = useState('user1');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username === 'user1' && password === 'user1') {
-      if (onLoginSuccess) {
-        onLoginSuccess();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('http://localhost:8099/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('role', data.role);
+        
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        }
+      } else {
+        setError(data.detail || 'Invalid username or password');
       }
-    } else {
-      alert('Invalid username or password');
+    } catch (err) {
+      setError('Failed to connect to the server');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 font-outfit relative overflow-hidden text-slate-900">
-      
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 font-outfit relative overflow-hidden text-slate-900 transition-colors duration-300">
       <div className="w-full max-w-[420px] p-10 bg-white border border-slate-200 rounded-3xl shadow-xl z-10 relative transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 mx-auto mb-4 bg-violet-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-violet-200">
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-              <polyline points="2 17 12 22 22 17"></polyline>
-              <polyline points="2 12 12 17 22 12"></polyline>
-            </svg>
-          </div>
-          <h2 className="text-[28px] font-bold mb-2 text-slate-800">Welcome Back</h2>
-          <p className="text-sm text-slate-500 m-0">Please enter your details to sign in.</p>
+          <h2 className="text-[28px] font-bold mb-2 text-slate-900">Welcome Back</h2>
         </div>
 
-        <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+        {error && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <form className="flex flex-col gap-5" onSubmit={handleLogin}>
           <div className="flex flex-col gap-2">
             <label htmlFor="username" className="text-[13px] font-medium text-slate-600 ml-1">Username</label>
             <div className="relative flex items-center group">
@@ -70,29 +93,24 @@ export default function Login({ onLoginSuccess }) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-[13px]">
-            <label className="flex items-center gap-2 text-slate-500 cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="appearance-none w-4 h-4 border border-slate-300 rounded bg-white cursor-pointer relative transition-all duration-200 checked:bg-violet-600 checked:border-violet-600 checked:after:content-[''] checked:after:absolute checked:after:top-[2px] checked:after:left-[5px] checked:after:w-1 checked:after:h-2 checked:after:border-solid checked:after:border-white checked:after:border-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45"
-              />
-              <span>Remember me</span>
-            </label>
-            <a href="#" className="text-violet-600 no-underline font-medium transition-colors duration-200 hover:text-violet-700">Forgot password?</a>
-          </div>
 
-          <button type="submit" className="group w-full py-3.5 mt-2 bg-violet-600 text-white border-none rounded-xl text-[16px] font-semibold font-inherit cursor-pointer flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-violet-200 hover:bg-violet-700 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-[1px]">
-            Sign In
-            <svg className="w-[18px] h-[18px] transition-transform duration-300 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="group w-full py-3.5 mt-2 bg-violet-600 text-white border-none rounded-xl text-[16px] font-semibold font-inherit cursor-pointer flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-violet-200 hover:bg-violet-700 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-[1px] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-md"
+          >
+            {loading ? 'Logging in...' : 'log in'}
+            {!loading && (
+              <svg className="w-[18px] h-[18px] transition-transform duration-300 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            )}
           </button>
         </form>
 
-        <div className="mt-8 text-center text-sm text-slate-500">
-          <p>Don't have an account? <a href="#" className="text-slate-800 no-underline font-medium transition-colors duration-200 hover:text-violet-600">Sign up</a></p>
-        </div>
+
       </div>
     </div>
   );

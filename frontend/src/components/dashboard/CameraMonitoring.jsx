@@ -1,22 +1,86 @@
-import React, { useState } from 'react';
-import { initialCameras } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
 
 export default function CameraMonitoring() {
-  const [cameras, setCameras] = useState(initialCameras);
+  const [cameras, setCameras] = useState([]);
   const [selectedCamera, setSelectedCamera] = useState(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [cameraFilter, setCameraFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filteredCameras = cameras.filter(cam => cameraFilter === 'all' || cam.status === cameraFilter);
+  const fetchCameras = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:8099/api/cameras', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch cameras');
+      const data = await response.json();
+      setCameras(data);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError('Could not connect to the API.');
+    }
+  };
+
+  useEffect(() => {
+    fetchCameras().then(() => setLoading(false));
+    
+    const interval = setInterval(() => {
+      fetchCameras();
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleUpdateCamera = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('access_token');
+      const payload = {
+        camera_name: selectedCamera.camera_name,
+        ip_address: selectedCamera.ip_address,
+        modbus_register: selectedCamera.modbus_register ? parseInt(selectedCamera.modbus_register) : null,
+        channel_no: selectedCamera.channel_no !== '' && selectedCamera.channel_no !== null ? parseInt(selectedCamera.channel_no) : null,
+      };
+
+      const response = await fetch(`http://localhost:8099/api/devices/cameras/${selectedCamera.id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        setIsEditModalOpen(false);
+        fetchCameras();
+      } else {
+        alert('Failed to update camera');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error updating camera');
+    }
+  };
+
+  const filteredCameras = cameras.filter(cam => {
+    if (cameraFilter === 'all') return true;
+    if (cameraFilter === 'online') return cam.online;
+    if (cameraFilter === 'offline') return !cam.online;
+    return true;
+  });
 
   return (
     <>
-      <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
+      <div className="rounded-3xl bg-white p-6 shadow-md border border-slate-200 transition-colors duration-200">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Camera Monitoring</h2>
-            <p className="text-sm text-slate-500">
-              Realtime camera health monitoring
+            <h2 className="text-xl font-bold text-slate-900">Camera Monitoring</h2>
+            <p className="text-sm text-slate-600">
+              Realtime CCTV health & Modbus mapping
             </p>
           </div>
 
@@ -32,89 +96,96 @@ export default function CameraMonitoring() {
             </select>
             <input
               placeholder="Search camera..."
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all text-slate-900 placeholder:text-slate-400"
             />
-            <button 
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-700 active:scale-95"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Add
-            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 max-h-[300px] overflow-y-auto pr-2">
-          {filteredCameras.map((cam) => (
-            <div
-              key={cam.id}
-              onClick={() => setSelectedCamera(cam)}
-              className="rounded-xl border border-slate-200 p-3 transition-all hover:shadow-md hover:border-violet-300 cursor-pointer bg-white"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-slate-800">
-                    {cam.name}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 max-h-[300px] overflow-y-auto pr-2">
+            {filteredCameras.map((cam) => (
+              <div
+                key={cam.id}
+                onClick={() => setSelectedCamera(cam)}
+                className="rounded-xl border border-slate-200 p-3 transition-all hover:shadow-md hover:border-violet-300 cursor-pointer bg-white"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">
+                      {cam.camera_name}
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-medium text-slate-500 truncate w-40">
+                      NVR: {cam.nvr ? cam.nvr.name : 'Unknown'}
+                    </div>
                   </div>
-                  <div className="mt-0.5 text-[11px] font-medium text-slate-500">
-                    Latency: {cam.latency}
+
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`h-2 w-2 rounded-full shadow-sm ${
+                        cam.online
+                          ? 'bg-emerald-500 shadow-emerald-500/50'
+                          : 'bg-rose-500 shadow-rose-500/50 animate-pulse'
+                      }`}
+                    />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`h-2 w-2 rounded-full shadow-sm ${
-                      cam.status === 'online'
-                        ? 'bg-emerald-500 shadow-emerald-500/50'
-                        : 'bg-rose-500 shadow-rose-500/50 animate-pulse'
-                    }`}
-                  />
+                <div className="mt-3 flex items-center justify-between text-[11px] font-medium">
+                  <div className="flex gap-1.5 items-center">
+                    <span className="text-slate-500">Status:</span>
+                    <span
+                      className={
+                        cam.online
+                          ? 'text-emerald-600'
+                          : 'text-rose-600'
+                      }
+                    >
+                      {cam.online ? 'ONLINE' : 'OFFLINE'}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-1.5 items-center">
+                    <span className="text-slate-500">Modbus:</span>
+                    <span
+                      className={
+                        cam.modbus_register !== null
+                          ? 'text-violet-600'
+                          : 'text-slate-400'
+                      }
+                    >
+                      {cam.modbus_register !== null ? `HR ${cam.modbus_register}:${cam.channel_no}` : 'NOT MAPPED'}
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              <div className="mt-3 flex items-center justify-between text-[11px] font-medium">
-                <div className="flex gap-1.5 items-center">
-                  <span className="text-slate-500">Status:</span>
-                  <span
-                    className={
-                      cam.status === 'online'
-                        ? 'text-emerald-600'
-                        : 'text-rose-600'
-                    }
-                  >
-                    {cam.status.toUpperCase()}
-                  </span>
-                </div>
-
-                <div className="flex gap-1.5 items-center">
-                  <span className="text-slate-500">REC:</span>
-                  <span
-                    className={
-                      cam.recording
-                        ? 'text-blue-600'
-                        : 'text-slate-400'
-                    }
-                  >
-                    {cam.recording ? 'ON' : 'OFF'}
-                  </span>
-                </div>
+            ))}
+            {filteredCameras.length === 0 && (
+              <div className="col-span-full py-8 text-center text-slate-500 text-sm">
+                No cameras found.
               </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Camera Details Modal */}
-      {selectedCamera && (
+      {selectedCamera && !isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
             <div className="p-6">
               <div className="flex items-start justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{selectedCamera.name}</h3>
+                  <h3 className="text-xl font-bold text-slate-900">{selectedCamera.camera_name}</h3>
                   <p className="text-sm text-slate-500 mt-1">Camera Details & Settings</p>
                 </div>
                 <button 
@@ -131,23 +202,29 @@ export default function CameraMonitoring() {
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between items-center py-3 border-b border-slate-100">
                   <span className="text-sm font-medium text-slate-500">Status</span>
-                  <span className={`text-sm font-bold ${selectedCamera.status === 'online' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {selectedCamera.status.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                  <span className="text-sm font-medium text-slate-500">Network Latency</span>
-                  <span className="text-sm font-medium text-slate-900">{selectedCamera.latency}</span>
-                </div>
-                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                  <span className="text-sm font-medium text-slate-500">Recording</span>
-                  <span className={`text-sm font-bold ${selectedCamera.recording ? 'text-blue-600' : 'text-slate-400'}`}>
-                    {selectedCamera.recording ? 'ACTIVE' : 'INACTIVE'}
+                  <span className={`text-sm font-bold ${selectedCamera.online ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {selectedCamera.online ? 'ONLINE' : 'OFFLINE'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-slate-100">
                   <span className="text-sm font-medium text-slate-500">IP Address</span>
-                  <span className="text-sm font-medium text-slate-900">192.168.1.{selectedCamera.id + 100}</span>
+                  <span className="text-sm font-medium text-slate-900">{selectedCamera.ip_address}</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-medium text-slate-500">NVR</span>
+                  <span className="text-sm font-medium text-slate-900">{selectedCamera.nvr ? selectedCamera.nvr.name : '-'}</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-medium text-slate-500">Modbus Register</span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {selectedCamera.modbus_register !== null ? `HR ${selectedCamera.modbus_register}` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-medium text-slate-500">Modbus Channel (Bit)</span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {selectedCamera.channel_no !== null ? selectedCamera.channel_no : '-'}
+                  </span>
                 </div>
               </div>
 
@@ -159,19 +236,14 @@ export default function CameraMonitoring() {
                   Close
                 </button>
                 <button 
-                  onClick={() => {
-                    if(window.confirm(`Are you sure you want to permanently delete ${selectedCamera.name}?`)) {
-                      console.log('Deleted', selectedCamera.name);
-                      setSelectedCamera(null);
-                    }
-                  }}
-                  className="flex items-center justify-center gap-2 flex-1 bg-rose-50 text-rose-600 font-semibold py-2.5 rounded-xl hover:bg-rose-100 transition-colors"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="flex items-center justify-center gap-2 flex-1 bg-violet-50 text-violet-600 font-semibold py-2.5 rounded-xl hover:bg-violet-100 transition-colors"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                   </svg>
-                  Delete Camera
+                  Edit Config
                 </button>
               </div>
             </div>
@@ -179,18 +251,22 @@ export default function CameraMonitoring() {
         </div>
       )}
 
-      {/* Add Camera Modal */}
-      {isAddModalOpen && (
+      {/* Edit Camera Config Modal */}
+      {isEditModalOpen && selectedCamera && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
             <div className="p-6">
               <div className="flex items-start justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">Add New Camera</h3>
-                  <p className="text-sm text-slate-500 mt-1">Configure network camera details</p>
+                  <h3 className="text-xl font-bold text-slate-900">Edit Camera Settings</h3>
+                  <p className="text-sm text-slate-500 mt-1">Update network and Modbus config</p>
                 </div>
                 <button 
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    const original = cameras.find(c => c.id === selectedCamera.id);
+                    if (original) setSelectedCamera(original);
+                  }}
                   className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -200,44 +276,73 @@ export default function CameraMonitoring() {
                 </button>
               </div>
 
-              <div className="space-y-4 mb-8">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Camera Name</label>
-                  <input 
-                    type="text"
-                    defaultValue=""
-                    placeholder="e.g. Camera-13"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
-                  />
+              <form onSubmit={handleUpdateCamera}>
+                <div className="space-y-4 mb-8">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Camera Name</label>
+                    <input 
+                      type="text"
+                      value={selectedCamera.camera_name || ''}
+                      onChange={(e) => setSelectedCamera({...selectedCamera, camera_name: e.target.value})}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all text-slate-900 placeholder:text-slate-400"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">IP Address</label>
+                    <input 
+                      type="text"
+                      value={selectedCamera.ip_address || ''}
+                      onChange={(e) => setSelectedCamera({...selectedCamera, ip_address: e.target.value})}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all text-slate-900 placeholder:text-slate-400"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Modbus Register (HR)</label>
+                      <input 
+                        type="number"
+                        placeholder="e.g. 40010"
+                        value={selectedCamera.modbus_register || ''}
+                        onChange={(e) => setSelectedCamera({...selectedCamera, modbus_register: e.target.value})}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all text-slate-900 placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Channel (Bit 0-15)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        max="15"
+                        placeholder="e.g. 0"
+                        value={selectedCamera.channel_no !== null ? selectedCamera.channel_no : ''}
+                        onChange={(e) => setSelectedCamera({...selectedCamera, channel_no: e.target.value})}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all text-slate-900 placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">IP Address</label>
-                  <input 
-                    type="text"
-                    defaultValue=""
-                    placeholder="e.g. 192.168.1.113"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
-                  />
-                </div>
-              </div>
 
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => {
-                    alert('Mockup: Camera data would be submitted here.');
-                    setIsAddModalOpen(false);
-                  }}
-                  className="flex items-center justify-center gap-2 flex-1 bg-violet-600 text-white font-semibold py-2.5 rounded-xl hover:bg-violet-700 transition-colors"
-                >
-                  Activate Camera
-                </button>
-              </div>
+                <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      const original = cameras.find(c => c.id === selectedCamera.id);
+                      if (original) setSelectedCamera(original);
+                    }}
+                    className="flex-1 bg-white border border-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex items-center justify-center gap-2 flex-1 bg-violet-600 text-white font-semibold py-2.5 rounded-xl hover:bg-violet-700 transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

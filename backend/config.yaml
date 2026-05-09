@@ -1,6 +1,6 @@
 app:
   host: 0.0.0.0
-  port: 8080
+  port: 8099
   poll_interval_sec: 5
   modbus_host: 0.0.0.0
   modbus_port: 5020
