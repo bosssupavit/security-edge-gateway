@@ -31,7 +31,8 @@ logging.root.addHandler(_stream_handler)
 # File gets INFO+, terminal silent
 logging.getLogger('app').setLevel(logging.INFO)
 logging.getLogger('pymodbus').setLevel(logging.ERROR)
-logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
+logging.getLogger('uvicorn').setLevel(logging.WARNING)
+logging.getLogger('uvicorn.access').setLevel(logging.WARNING)  # disabled, using app.access middleware
 
 from app.main import app
 from app.services.poller import start_polling

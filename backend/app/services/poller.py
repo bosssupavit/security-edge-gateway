@@ -1,3 +1,4 @@
+import logging
 import platform
 import subprocess
 import threading
@@ -10,6 +11,8 @@ from app.db import SessionLocal
 from app.models import CameraStatus, NvrStatus, ZkDeviceStatus, ZkAccessTransaction
 from app.services.hikcentral_client import HikCentralClient
 from app.services.zk_client import ZkBioClient
+
+logger = logging.getLogger(__name__)
 
 
 client = HikCentralClient(
@@ -48,7 +51,7 @@ def _sync_nvr(db):
         nvr.online = status_val == 1
         nvr.updated_at = datetime.utcnow()
 
-    print(f'[poller] synced {len(devices)} NVRs')
+    logger.info('[poller] synced %d NVRs', len(devices))
 
 
 def _sync_cameras(db):
@@ -77,7 +80,7 @@ def _sync_cameras(db):
         cam.site_index_code = cam_data.get('siteIndexCode', '')
         cam.updated_at = datetime.utcnow()
 
-    print(f'[poller] synced {len(cameras)} cameras')
+    logger.info('[poller] synced %d cameras', len(cameras))
 
 def _ping_host(ip: str) -> bool:
     """Return True if the host responds to a single ICMP ping."""
@@ -114,7 +117,7 @@ def _sync_cameras_live_status(db):
             row.online = ping_online
             row.updated_at = datetime.utcnow()
 
-    print(f'[poller] updated live status for {len(rows)} cameras (ping-based)')
+    logger.info('[poller] updated live status for %d cameras (ping-based)', len(rows))
 
 
 
@@ -140,7 +143,7 @@ def _sync_zk_devices(db):
         row.online      = dev.get('online', False)
         row.updated_at  = datetime.utcnow()
 
-    print(f'[poller] synced {len(devices)} ZK devices')
+    logger.info('[poller] synced %d ZK devices', len(devices))
 
 
 def _sync_zk_door_states(db):
@@ -173,7 +176,7 @@ def _sync_zk_door_states(db):
         matched_row.updated_at  = datetime.utcnow()
         updated += 1
 
-    print(f'[poller] updated door state for {updated} ZK devices')
+    logger.info('[poller] updated door state for %d ZK devices', updated)
 
 
 def _sync_zk_transactions(db):
@@ -210,7 +213,7 @@ def _sync_zk_transactions(db):
         ))
         new_count += 1
 
-    print(f'[poller] inserted {new_count} new ZK transactions')
+    logger.info('[poller] inserted %d new ZK transactions', new_count)
 
 
 def polling_loop():
@@ -227,10 +230,10 @@ def polling_loop():
                 try:
                     fn()
                 except Exception as e:
-                    print(f'[poller] {label} error: {e}')
+                    logger.error('[poller] %s error: %s', label, e)
             db.commit()
         except Exception as e:
-            print('[poller] commit error:', e)
+            logger.error('[poller] commit error: %s', e)
         finally:
             db.close()
 

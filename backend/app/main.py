@@ -1,7 +1,9 @@
 import sys
+import time
 import time as _time
+import logging
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -40,6 +42,22 @@ def _seed_default_admin():
 _seed_default_admin()
 
 app = FastAPI(title='Security Edge Gateway')
+
+_access_logger = logging.getLogger('app.access')
+
+@app.middleware('http')
+async def _log_requests(request: Request, call_next):
+    start = _time.time()
+    response = await call_next(request)
+    ms = (time.time() - start) * 1000
+    _access_logger.info(
+        '%s %s %s %.0fms',
+        request.method,
+        request.url.path,
+        response.status_code,
+        ms,
+    )
+    return response
 
 app.add_middleware(
     CORSMiddleware,
