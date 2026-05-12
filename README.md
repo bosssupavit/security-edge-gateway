@@ -38,7 +38,7 @@ ZKBio Access (ZK)  ──┘         │
 │  └────┬─────┘   └────────────┘   └────────────────────┘ │
 │       │                                                  │
 │  ┌────▼──────────────────────────┐                       │
-│  │     FastAPI REST API :8080    │                       │
+│  │     FastAPI REST API :8099    │                       │
 │  └───────────────────────────────┘                       │
 └─────────────────────────────────────────────────────────┘
        │                      │
@@ -130,8 +130,8 @@ venv/bin/python migrate.py
 venv/bin/python run.py
 ```
 
-Server จะฟังที่ `http://0.0.0.0:8080`  
-API Docs: `http://localhost:8080/docs`
+Server จะฟังที่ `http://0.0.0.0:8099`  
+API Docs: `http://localhost:8099/docs`
 
 ---
 
@@ -151,7 +151,7 @@ npm run build    # build สำหรับ production
 ```yaml
 app:
   host: 0.0.0.0
-  port: 8080
+  port: 8099
   poll_interval_sec: 5    # ความถี่ polling (วินาที)
   modbus_host: 0.0.0.0
   modbus_port: 5020        # Modbus TCP port (502 สำหรับ production)
@@ -249,7 +249,7 @@ GET /api/health
 ```json
 {
   "status": "ok",
-  "gateway": { "ok": true, "host": "0.0.0.0", "port": 8080, "uptime_sec": 142.3 },
+  "gateway": { "ok": true, "host": "0.0.0.0", "port": 8099, "uptime_sec": 142.3 },
   "sqlite":  { "ok": true },
   "modbus":  { "ok": true, "host": "127.0.0.1", "port": 5020 },
   "hikcentral": { "ok": true, "base_url": "https://..." },

@@ -4,4 +4,16 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: '../backend/static/frontend',
+    emptyOutDir: true,
+  },
+  // API calls are proxied to FastAPI during development
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8099',
+      '/auth': 'http://localhost:8099',
+      '/health': 'http://localhost:8099',
+    },
+  },
 })

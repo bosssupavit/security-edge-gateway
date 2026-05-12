@@ -46,7 +46,16 @@ class Settings(BaseModel):
     bacnet: BACnetConfig
 
 
-with Path('config.yaml').open('r', encoding='utf-8') as f:
+def _config_path() -> Path:
+    """Return config.yaml path that works both normally and in a PyInstaller bundle."""
+    import sys
+    if getattr(sys, 'frozen', False):
+        # When running as a frozen exe, look next to the executable
+        return Path(sys.executable).parent / 'config.yaml'
+    return Path('config.yaml')
+
+
+with _config_path().open('r', encoding='utf-8') as f:
     raw = yaml.safe_load(f)
 
 settings = Settings(**raw)

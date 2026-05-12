@@ -28,13 +28,13 @@ cd /d "%PROJECT_ROOT%\backend"
 
 if not exist "venv" (
     echo [Backend] Creating virtual environment...
-    python -m venv venv
+    py -3.12 -m venv venv
 ) else (
     echo [Backend] venv already exists, skipping.
 )
 
 echo [Backend] Installing Python packages...
-venv\Scripts\pip install -r requirements.txt --quiet
+venv\Scripts\pip install -r requirements.txt
 
 :: ── Backend: migrate DB ───────────────────────────────────────────────────────
 echo [Backend] Running database migration...
@@ -53,7 +53,7 @@ if %errorLevel% neq 0 (
 echo [Frontend] Installing npm packages...
 npm install
 
-echo [Frontend] Building frontend...
+echo [Frontend] Building frontend (output -> backend\static\frontend)...
 npm run build
 
 :done
@@ -67,10 +67,8 @@ echo    2. Run scripts\windows\setup_autostart.bat  (as Administrator)
 echo       to register auto-start on Windows boot
 echo    3. Or run manually:
 echo       scripts\windows\start_backend.bat
-echo       scripts\windows\start_frontend.bat
 echo.
-echo  Backend API : http://localhost:8080
-echo  Frontend    : http://localhost:4173
-echo  API Docs    : http://localhost:8080/docs
+echo  App (backend + frontend) : http://localhost:8099
+echo  API Docs                 : http://localhost:8099/docs
 echo ============================================================
 pause

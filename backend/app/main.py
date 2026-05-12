@@ -1,6 +1,10 @@
+import sys
 import time as _time
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.db import Base, engine, SessionLocal
 from app.api.routes import router
@@ -57,3 +61,28 @@ def health():
     return {
         'status': 'ok',
     }
+
+
+# ── Serve built React frontend ────────────────────────────────────────────────
+# Resolve the frontend/dist directory whether running normally or as a PyInstaller bundle.
+if getattr(sys, 'frozen', False):
+    # PyInstaller extracts data files to sys._MEIPASS.
+    # The spec bundles static/frontend → static/frontend inside the bundle.
+    _STATIC_DIR = Path(sys._MEIPASS) / 'static' / 'frontend'
+else:
+    # Dev: vite builds into backend/static/frontend
+    _STATIC_DIR = Path(__file__).parent.parent / 'static' / 'frontend'
+
+if _STATIC_DIR.exists():
+    # Serve hashed JS/CSS/image assets (only mount if the folder exists)
+    _assets_dir = _STATIC_DIR / 'assets'
+    if _assets_dir.exists():
+        app.mount('/assets', StaticFiles(directory=_assets_dir), name='assets')
+
+    @app.get('/{full_path:path}', include_in_schema=False)
+    def serve_spa(full_path: str):
+        """Serve static files or fall back to index.html for SPA routing."""
+        file = _STATIC_DIR / full_path
+        if file.is_file():
+            return FileResponse(file)
+        return FileResponse(_STATIC_DIR / 'index.html')

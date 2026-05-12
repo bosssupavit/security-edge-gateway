@@ -21,7 +21,7 @@ HikCentral (ISAPI)          ZKBio / BioTime (REST)
 
 | Service | Description |
 |---------|-------------|
-| **FastAPI** | REST API on `app.port` (default `8080`) |
+| **FastAPI** | REST API on `app.port` (default `8099`) |
 | **Poller** | Background thread that polls HikCentral and ZKBio on every `poll_interval_sec` |
 | **Modbus TCP Server** | Exposes camera & access-controller status as holding registers on `modbus_port` (default `5020`) |
 
@@ -45,8 +45,8 @@ cp config.yaml config.local.yaml   # then fill in credentials
 python run.py
 ```
 
-- REST API: `http://localhost:8080`
-- Swagger docs: `http://localhost:8080/docs`
+- REST API: `http://localhost:8099`
+- Swagger docs: `http://localhost:8099/docs`
 - Modbus TCP: `localhost:5020`
 
 ## Configuration (`config.yaml`)
@@ -54,7 +54,7 @@ python run.py
 ```yaml
 app:
   host: 0.0.0.0
-  port: 8080
+  port: 8099
   poll_interval_sec: 5      # polling frequency (seconds)
   modbus_host: 0.0.0.0
   modbus_port: 5020

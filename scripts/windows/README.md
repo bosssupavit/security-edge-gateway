@@ -97,8 +97,8 @@ scripts\windows\start_frontend.bat
 
 | Service | URL |
 |---------|-----|
-| Backend API | http://localhost:8080 |
-| API Docs (Swagger) | http://localhost:8080/docs |
+| Backend API | http://localhost:8099 |
+| API Docs (Swagger) | http://localhost:8099/docs |
 | Frontend | http://localhost:4173 |
 | Modbus TCP | localhost:5020 |
 
@@ -137,7 +137,7 @@ scripts\windows\remove_autostart.bat
 **Task Scheduler ไม่ start**
 > ตรวจสอบว่า Task Scheduler service เปิดอยู่: `services.msc` → Task Scheduler → Start
 
-**Port 8080 หรือ 5020 ถูกใช้อยู่**
+**Port 8099 หรือ 5020 ถูกใช้อยู่**
 > แก้ไขใน `backend\config.yaml`:
 > ```yaml
 > app:

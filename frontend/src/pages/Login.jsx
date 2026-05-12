@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { publicPost } from '../services/api';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -12,13 +13,7 @@ export default function Login({ onLoginSuccess }) {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8099/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
+      const response = await publicPost('/api/auth/login', { username, password });
 
       const data = await response.json();
 

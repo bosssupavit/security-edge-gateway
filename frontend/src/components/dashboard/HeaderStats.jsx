@@ -14,8 +14,8 @@ export default function HeaderStats() {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [camRes, zkRes] = await Promise.all([
-        fetch('http://localhost:8099/api/cameras', { headers }),
-        fetch('http://localhost:8099/api/zk/devices', { headers })
+        fetch('/api/cameras', { headers }),
+        fetch('/api/zk/devices', { headers })
       ]);
 
       const cameras = camRes.ok ? await camRes.json() : [];

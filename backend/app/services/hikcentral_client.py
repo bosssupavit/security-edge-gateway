@@ -80,7 +80,7 @@ class HikCentralClient:
         logger.debug('[hikcentral] POST %s body=%s', url, body)
 
         try:
-            resp = httpx.post(url, headers=headers, json=body, timeout=100)
+            resp = httpx.post(url, headers=headers, json=body, timeout=100, verify=False)
             logger.debug('[hikcentral] ← %s %s', resp.status_code, resp.text[:500])
             resp.raise_for_status()
             return resp.json()
@@ -99,7 +99,7 @@ class HikCentralClient:
         logger.debug('[hikcentral] GET %s', url)
 
         try:
-            resp = httpx.get(url, headers=headers, timeout=100)
+            resp = httpx.get(url, headers=headers, timeout=100, verify=False)
             logger.debug('[hikcentral] ← %s %s', resp.status_code, resp.text[:500])
             resp.raise_for_status()
             return resp.json()

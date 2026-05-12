@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const emptyDraft = {
   camera_name: '',
@@ -47,7 +48,7 @@ export default function CameraMonitoring() {
   const fetchCameras = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8099/api/cameras', {
+      const response = await fetch('/api/cameras', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -152,7 +153,7 @@ export default function CameraMonitoring() {
         channel_no: updatedCamera.channel_no,
       };
 
-      const response = await fetch(`http://localhost:8099/api/devices/cameras/${selectedCamera.id}`, {
+      const response = await fetch(`/api/devices/cameras/${selectedCamera.id}`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -354,7 +355,7 @@ export default function CameraMonitoring() {
         )}
       </div>
 
-      {selectedCamera && !modalMode && (
+      {selectedCamera && !modalMode && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl">
             <div className="p-6">
@@ -419,9 +420,9 @@ export default function CameraMonitoring() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
-      {modalMode && (
+      {modalMode && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl">
             <div className="p-6">
@@ -522,9 +523,9 @@ export default function CameraMonitoring() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
-      {cameraToDelete && (
+      {cameraToDelete && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl">
             <div className="p-6">
@@ -559,7 +560,7 @@ export default function CameraMonitoring() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }

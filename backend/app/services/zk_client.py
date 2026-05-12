@@ -55,6 +55,7 @@ class ZkBioClient:
         self._page_size = page_size
         self._session = requests.Session()
         self._session.headers.update({'Content-Type': 'application/json'})
+        self._session.verify = False
 
     # ─── internal helpers ────────────────────────────────────────────────────
 
@@ -127,23 +128,24 @@ class ZkBioClient:
         logger.info('[zk-client] fetched %d doors', len(raw))
         return raw
 
-    def get_all_door_states(self, timestamp: int = 0) -> list[dict]:
+    def get_all_door_states(self) -> list[dict]:
         """
         §2.11.1  GET /api/door/allDoorState
         Returns current sensor/alarm/relay state for every door.
-        ``timestamp`` = millisecond epoch; recommended ≥10 s interval.
+
+        Real API supports pageNo/pageSize — uses _paginate to handle >100 doors.
+        Raw fields per door:
+          id       : door's CVSecurity internal ID
+          name     : door display name
+          deviceId : owning device's CVSecurity internal ID (matches accList.id / zk_id)
+          connect  : "1"=controller connected, "0"=offline
+          sensor   : "1"=door physically open, "0"=door physically closed
+          alarm    : "0"=normal, "2"=alarm active
+          relay    : "1"=unlocked (relay energised), "0"=locked
         """
-        try:
-            body = self._get('door/allDoorState', params={'timestamp': timestamp})
-        except Exception as exc:
-            logger.error('[zk-client] get_all_door_states error: %s', exc)
-            return []
-
-        if body.get('code', -1) != 0:
-            logger.warning('[zk-client] allDoorState code=%s', body.get('code'))
-            return []
-
-        return body.get('data') or []
+        raw = self._paginate('door/allDoorState')
+        logger.info('[zk-client] fetched %d door states', len(raw))
+        return [_parse_door_state(d) for d in raw]
 
     def get_door_states_by_sn(self, device_sn: str, timestamp: int = 0) -> list[dict]:
         """
@@ -207,39 +209,59 @@ class ZkBioClient:
 # ─── Normalizers ─────────────────────────────────────────────────────────────
 
 def _normalize_device(raw: dict) -> dict:
-    """Normalise §2.9.1 device object to a clean typed dict."""
-    state_str = str(raw.get('state', raw.get('status', '0')))
+    """Normalise §2.9.1 accList device object to a clean typed dict.
+
+    Actual API fields (verified against real response):
+      id     : internal CVSecurity device ID  → zk_id  (used to match allDoorState.deviceId)
+      sn     : hardware serial number         → sn
+      name   : device label e.g. "ACC041-ACC-01-PD"
+      type   : model name e.g. "SenseFace 3A"
+      status : "1"=enabled/online, "0"=disabled
+      module : always "acc"
+    """
+    status_str = str(raw.get('status', '0'))
     return {
-        'id':           raw.get('id', ''),
-        'sn':           raw.get('sn', ''),
-        'name':         raw.get('name', ''),
-        'type':         raw.get('type', ''),
-        'state':        state_str,          # "1" enabled, "0" disabled
-        'online':       state_str == '1',
-        'module':       raw.get('module', 'acc'),
+        'zk_id':       raw.get('id', ''),
+        'sn':          raw.get('sn', ''),
+        'name':        raw.get('name', ''),
+        'device_type': raw.get('type', ''),
+        'online':      status_str == '1',
+        'module':      raw.get('module', 'acc'),
     }
 
 
 def _parse_door_state(raw: dict) -> dict:
-    """Parse a door-state object from allDoorState / doorStateById response."""
-    connect = str(raw.get('connect', '0'))
-    sensor = str(raw.get('sensor', 'unknown')).lower()
-    relay = str(raw.get('relay', 'off')).lower()
+    """Parse a door-state object from allDoorState response.
 
-    # sensor: "open" means door is physically open
-    door_opened = sensor == 'open'
-    # relay: "off" means locked / closed
-    door_closed = relay == 'off'
+    Actual API fields (verified against real response):
+      id       : door's CVSecurity internal ID
+      name     : door display name e.g. "Corridoor-Mixing"
+      deviceId : owning device's CVSecurity ID  (matches accList.id = zk_id)
+      connect  : "1"=controller connected, "0"=offline
+      sensor   : "1"=door physically OPEN, "0"=door physically CLOSED
+      alarm    : "0"=normal, "2"=alarm active
+      relay    : "1"=relay energised (unlocked), "0"=relay off (locked)
+
+    Note: door_opened/door_closed are derived from `sensor`, NOT relay.
+          relay reflects lock command state, not physical door position.
+    """
+    connect = str(raw.get('connect', '0'))
+    sensor  = str(raw.get('sensor',  '0'))
+    relay   = str(raw.get('relay',   '0'))
+    alarm   = str(raw.get('alarm',   '0'))
+
+    door_opened = sensor == '1'
 
     return {
         'id':           raw.get('id', ''),
         'name':         raw.get('name', ''),
-        'device_id':    raw.get('deviceId', ''),
-        'connect':      connect,        # "0"=offline, "1"=online, "2"=disabled
+        'zk_device_id': raw.get('deviceId', ''),
+        'connect':      connect,
         'online':       connect == '1',
         'sensor':       sensor,
-        'alarm':        str(raw.get('alarm', 'none')).lower(),
         'relay':        relay,
+        'alarm':        alarm,
         'door_opened':  door_opened,
-        'door_closed':  door_closed,
+        'door_closed':  not door_opened,   # sensor-based, not relay-based
+        'unlocked':     relay == '1',      # lock command state
     }

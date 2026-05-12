@@ -1,5 +1,9 @@
 from fastapi import APIRouter
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
+
+import os
+import pathlib
 
 from app.db import SessionLocal
 from app.models import CameraStatus, NvrStatus, ZkDeviceStatus, ZkAccessTransaction
@@ -77,6 +81,7 @@ def healthcheck():
             f"{settings.zkbio.base_url.rstrip('/')}/api/device/accList",
             params={'access_token': settings.zkbio.access_token, 'pageNo': 1, 'pageSize': 1},
             timeout=5,
+            verify=False,
         )
         body = r.json()
         if r.ok and body.get('code', -1) == 0:
@@ -142,10 +147,15 @@ def get_zk_devices():
             {
                 'sn': d.sn,
                 'name': d.name,
+                'device_type': d.device_type,
+                'door_name': d.door_name,
+                'door_zk_id': d.door_zk_id,
                 'ip_address': d.ip_address,
                 'online': d.online,
+                'alarm': d.alarm,
                 'door_opened': d.door_opened,
                 'door_closed': d.door_closed,
+                'unlocked': d.unlocked,
                 'slot_no': d.slot_no,
                 'modbus_register': d.modbus_register,
                 'updated_at': d.updated_at,
@@ -199,7 +209,7 @@ def get_zk_transactions(
 @router.get('/api/modbus/registers')
 def get_modbus_registers():
     """Read live Modbus holding register values from in-memory datastore."""
-    slave = _context[UNIT_ID]
+    slave = _context[0]  # single=True: use index 0
 
     # Block A: ZK ACC (40000-40007)
     acc_regs = slave.getValues(3, ACC_HR_BASE, ACC_NUM_REGS)
@@ -217,7 +227,7 @@ def get_modbus_registers():
             })
         acc_block.append({
             'register': register,
-            'raw_hex': hex(val),
+            'raw_hex': f'0x{val:04x}',
             'raw_dec': val,
             'devices': devices,
         })
@@ -231,11 +241,11 @@ def get_modbus_registers():
         for bit in range(CCTV_CAMERAS_PER_REG):
             cameras.append({
                 'channel_no': bit,
-                'online': not bool(val & (1 << bit)),  # 0=online, 1=offline
+                'online': bool(val & (1 << bit)),  # 1=online, 0=offline
             })
         cctv_block.append({
             'register': register,
-            'raw_hex': hex(val),
+            'raw_hex': f'0x{val:04x}',
             'raw_dec': val,
             'cameras': cameras,
         })
@@ -303,4 +313,28 @@ def get_register_map():
         }
     finally:
         db.close()
+
+
+# ── Log endpoints ─────────────────────────────────────────────────────────────
+
+_LOG_FILE = pathlib.Path(__file__).parent.parent.parent / 'gateway.log'
+_LOG_TAIL_LINES = 200
+
+
+@router.get('/api/logs', response_class=PlainTextResponse)
+def get_logs(lines: int = _LOG_TAIL_LINES):
+    """Return the last N lines from gateway.log (default 200)."""
+    if not _LOG_FILE.exists():
+        return 'No log file found.'
+    with open(_LOG_FILE, encoding='utf-8', errors='replace') as f:
+        all_lines = f.readlines()
+    return ''.join(all_lines[-lines:])
+
+
+@router.post('/api/logs/clear')
+def clear_logs():
+    """Truncate gateway.log to zero bytes."""
+    if _LOG_FILE.exists():
+        open(_LOG_FILE, 'w').close()
+    return {'ok': True, 'message': 'Log cleared.'}
 
