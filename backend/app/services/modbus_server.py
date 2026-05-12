@@ -25,7 +25,7 @@ Block A — ZK Access Control (per spec)
 Block B — CCTV cameras (per spec)
   Start address : 40010  (protocol addr = 9)
   Layout        : 16 cameras per register, 1 bit each
-  Bit value     : 0 = online/active   1 = offline/fault
+  Bit value     : 0 = offline/fault   1 = online/active
   Register range: 40010 - 40020  (11 registers, 176 camera slots)
 
   channel_no in CameraMaster determines position (0-based):

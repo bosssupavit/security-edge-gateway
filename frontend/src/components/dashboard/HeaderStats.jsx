@@ -5,7 +5,9 @@ export default function HeaderStats() {
     totalCameras: 0,
     onlineCameras: 0,
     offlineCameras: 0,
-    doorsConnected: 0,
+    totalDoors: 0,
+    onlineDoors: 0,
+    offlineDoors: 0,
   });
 
   const fetchStats = async () => {
@@ -14,20 +16,23 @@ export default function HeaderStats() {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [camRes, zkRes] = await Promise.all([
-        fetch('/api/cameras', { headers }),
-        fetch('/api/zk/devices', { headers })
+        fetch('/api/devices/cameras', { headers }),
+        fetch('/api/devices/zk', { headers })
       ]);
 
       const cameras = camRes.ok ? await camRes.json() : [];
       const doors = zkRes.ok ? await zkRes.json() : [];
 
-      const onlineCount = cameras.filter(c => c.online).length;
+      const onlineCams = cameras.filter(c => c.online).length;
+      const onlineDoors = doors.filter(d => d.online).length;
 
       setStats({
         totalCameras: cameras.length,
-        onlineCameras: onlineCount,
-        offlineCameras: cameras.length - onlineCount,
-        doorsConnected: doors.length,
+        onlineCameras: onlineCams,
+        offlineCameras: cameras.length - onlineCams,
+        totalDoors: doors.length,
+        onlineDoors,
+        offlineDoors: doors.length - onlineDoors,
       });
     } catch (error) {
       console.error('Failed to fetch aggregate stats', error);
@@ -41,25 +46,35 @@ export default function HeaderStats() {
   }, []);
 
   return (
-    <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+    <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
       <div className="rounded-3xl bg-white p-5 shadow-md border border-slate-200 hover:shadow-lg transition-shadow">
         <div className="text-sm font-medium text-slate-600">Total Cameras</div>
         <div className="mt-2 text-4xl font-bold text-slate-900">{stats.totalCameras}</div>
       </div>
 
       <div className="rounded-3xl bg-white p-5 shadow-md border border-slate-200 hover:shadow-lg transition-shadow">
-        <div className="text-sm font-medium text-slate-600">Online Cameras</div>
+        <div className="text-sm font-medium text-slate-600">Cameras Online</div>
         <div className="mt-2 text-4xl font-bold text-emerald-600">{stats.onlineCameras}</div>
       </div>
 
       <div className="rounded-3xl bg-white p-5 shadow-md border border-slate-200 hover:shadow-lg transition-shadow">
-        <div className="text-sm font-medium text-slate-600">Offline Cameras</div>
+        <div className="text-sm font-medium text-slate-600">Cameras Offline</div>
         <div className="mt-2 text-4xl font-bold text-rose-600">{stats.offlineCameras}</div>
       </div>
 
       <div className="rounded-3xl bg-white p-5 shadow-md border border-slate-200 hover:shadow-lg transition-shadow">
-        <div className="text-sm font-medium text-slate-600">Doors Connected</div>
-        <div className="mt-2 text-4xl font-bold text-blue-600">{stats.doorsConnected}</div>
+        <div className="text-sm font-medium text-slate-600">Total Doors</div>
+        <div className="mt-2 text-4xl font-bold text-slate-900">{stats.totalDoors}</div>
+      </div>
+
+      <div className="rounded-3xl bg-white p-5 shadow-md border border-slate-200 hover:shadow-lg transition-shadow">
+        <div className="text-sm font-medium text-slate-600">Doors Online</div>
+        <div className="mt-2 text-4xl font-bold text-emerald-600">{stats.onlineDoors}</div>
+      </div>
+
+      <div className="rounded-3xl bg-white p-5 shadow-md border border-slate-200 hover:shadow-lg transition-shadow">
+        <div className="text-sm font-medium text-slate-600">Doors Offline</div>
+        <div className="mt-2 text-4xl font-bold text-rose-600">{stats.offlineDoors}</div>
       </div>
     </div>
   );

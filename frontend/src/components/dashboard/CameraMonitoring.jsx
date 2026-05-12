@@ -35,6 +35,27 @@ export default function CameraMonitoring() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!selectedCamera || isEditModalOpen) return;
+
+    const fetchCameraStatus = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/devices/cameras/${selectedCamera.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setSelectedCamera(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    const interval = setInterval(fetchCameraStatus, 3000);
+    return () => clearInterval(interval);
+  }, [selectedCamera?.id, isEditModalOpen]);
+
   const handleUpdateCamera = async (e) => {
     e.preventDefault();
     try {
@@ -126,7 +147,7 @@ export default function CameraMonitoring() {
                       {cam.camera_name}
                     </div>
                     <div className="mt-0.5 text-[11px] font-medium text-slate-500 truncate w-40">
-                      NVR: {cam.nvr ? cam.nvr.name : 'Unknown'}
+                      {cam.ip_address || '-'}
                     </div>
                   </div>
 
@@ -141,32 +162,19 @@ export default function CameraMonitoring() {
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between text-[11px] font-medium">
-                  <div className="flex gap-1.5 items-center">
-                    <span className="text-slate-500">Status:</span>
-                    <span
-                      className={
-                        cam.online
-                          ? 'text-emerald-600'
-                          : 'text-rose-600'
-                      }
-                    >
-                      {cam.online ? 'ONLINE' : 'OFFLINE'}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-1.5 items-center">
-                    <span className="text-slate-500">Modbus:</span>
-                    <span
-                      className={
-                        cam.modbus_register !== null
-                          ? 'text-violet-600'
-                          : 'text-slate-400'
-                      }
-                    >
-                      {cam.modbus_register !== null ? `HR ${cam.modbus_register}:${cam.channel_no}` : 'NOT MAPPED'}
-                    </span>
-                  </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    cam.online ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                  }`}>
+                    {cam.online ? 'ONLINE' : 'OFFLINE'}
+                  </span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    cam.modbus_register !== null
+                      ? 'bg-violet-100 text-violet-700'
+                      : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    {cam.modbus_register !== null ? `HR ${cam.modbus_register}:${cam.channel_no}` : 'NOT MAPPED'}
+                  </span>
                 </div>
               </div>
             ))}

@@ -22,13 +22,13 @@ _file_handler.setLevel(logging.INFO)
 
 _stream_handler = logging.StreamHandler()
 _stream_handler.setFormatter(_fmt)
-_stream_handler.setLevel(logging.ERROR)   # terminal: ERROR only
+_stream_handler.setLevel(logging.CRITICAL)   # terminal: silent (all logs go to file)
 
 logging.root.setLevel(logging.WARNING)
 logging.root.addHandler(_file_handler)
 logging.root.addHandler(_stream_handler)
 
-# File gets INFO+, terminal gets ERROR+ only
+# File gets INFO+, terminal silent
 logging.getLogger('app').setLevel(logging.INFO)
 logging.getLogger('pymodbus').setLevel(logging.ERROR)
 logging.getLogger('uvicorn.access').setLevel(logging.WARNING)

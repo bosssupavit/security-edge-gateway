@@ -1,4 +1,15 @@
-from pydantic import BaseModel
+import uuid
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+
+class CreateCameraRequest(BaseModel):
+    index_code: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
+    camera_name: str
+    ip_address: str = ''
+    channel_no: int | None = None          # bit position 0-15 within the register
+    modbus_register: int | None = None     # actual register number e.g. 40010
 
 
 class UpdateCameraStatusRequest(BaseModel):

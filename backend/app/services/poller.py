@@ -1,5 +1,8 @@
+import platform
+import subprocess
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from app.config import settings
@@ -75,6 +78,43 @@ def _sync_cameras(db):
         cam.updated_at = datetime.utcnow()
 
     print(f'[poller] synced {len(cameras)} cameras')
+
+def _ping_host(ip: str) -> bool:
+    """Return True if the host responds to a single ICMP ping."""
+    if not ip:
+        return False
+    is_windows = platform.system().lower() == 'windows'
+    count_param = '-n' if is_windows else '-c'
+    timeout_param = '-w' if is_windows else '-W'
+    timeout_val = '500' if is_windows else '1'
+    try:
+        result = subprocess.run(
+            ['ping', count_param, '1', timeout_param, timeout_val, ip],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def _sync_cameras_live_status(db):
+    rows = db.query(CameraStatus).all()
+    if not rows:
+        return
+
+    # Ping all cameras in parallel — 168 cameras fire simultaneously, ~1-2s total
+    with ThreadPoolExecutor(max_workers=min(200, len(rows))) as executor:
+        futures = {executor.submit(_ping_host, row.ip_address): row for row in rows}
+        for future in as_completed(futures):
+            row = futures[future]
+            ping_online = future.result()
+            row.status = 1 if ping_online else 0
+            row.online = ping_online
+            row.updated_at = datetime.utcnow()
+
+    print(f'[poller] updated live status for {len(rows)} cameras (ping-based)')
 
 
 
@@ -179,7 +219,7 @@ def polling_loop():
         try:
             for label, fn in [
                 ('nvr',            lambda: _sync_nvr(db)),
-                ('cameras',        lambda: _sync_cameras(db)),
+                ('cameras',        lambda: _sync_cameras_live_status(db)),
                 ('zk_devices',     lambda: _sync_zk_devices(db)),
                 ('zk_door_states', lambda: _sync_zk_door_states(db)),
                 # ('zk_transactions', lambda: _sync_zk_transactions(db)),

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.db import SessionLocal
 from app.models import CameraStatus, ZkDeviceStatus
-from app.schemas import UpdateCameraStatusRequest, UpdateZkDeviceRequest
+from app.schemas import CreateCameraRequest, UpdateCameraStatusRequest, UpdateZkDeviceRequest
 
 router = APIRouter(prefix='/api/devices', tags=['device-management'])
 
@@ -12,6 +12,42 @@ router = APIRouter(prefix='/api/devices', tags=['device-management'])
 # =========================
 # Camera Status Management
 # =========================
+
+@router.post('/cameras', status_code=201)
+def create_camera(
+    payload: CreateCameraRequest,
+    current_user=Depends(get_current_user),
+):
+    db: Session = SessionLocal()
+    try:
+        index_code = str(payload.index_code)
+        # index_code ถูก generate อัตโนมัติ จึงไม่ควร duplicate แต่ตรวจไว้เผื่อกรณี client ส่งมาเอง
+        existing = db.query(CameraStatus).filter(CameraStatus.index_code == index_code).first()
+        if existing:
+            raise HTTPException(409, 'Camera with this index_code already exists')
+        camera = CameraStatus(
+            index_code=index_code,
+            camera_name=payload.camera_name,
+            ip_address=payload.ip_address,
+            channel_no=payload.channel_no,
+            modbus_register=payload.modbus_register,
+        )
+        db.add(camera)
+        db.commit()
+        db.refresh(camera)
+        return {
+            'id': camera.id,
+            'index_code': camera.index_code,
+            'camera_name': camera.camera_name,
+            'ip_address': camera.ip_address,
+            'modbus_register': camera.modbus_register,
+            'channel_no': camera.channel_no,
+            'online': camera.online,
+            'updated_at': camera.updated_at,
+        }
+    finally:
+        db.close()
+
 
 @router.get('/cameras')
 def get_camera_list(
@@ -63,6 +99,22 @@ def get_camera(
             'modbus_register': item.modbus_register,
             'updated_at': item.updated_at,
         }
+    finally:
+        db.close()
+
+
+@router.delete('/cameras/{camera_id}', status_code=204)
+def delete_camera(
+    camera_id: int,
+    current_user=Depends(get_current_user),
+):
+    db: Session = SessionLocal()
+    try:
+        item = db.query(CameraStatus).filter(CameraStatus.id == camera_id).first()
+        if not item:
+            raise HTTPException(404, 'Camera not found')
+        db.delete(item)
+        db.commit()
     finally:
         db.close()
 

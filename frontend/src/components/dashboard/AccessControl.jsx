@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function AccessControl() {
   const [doors, setDoors] = useState([]);
@@ -7,6 +8,7 @@ export default function AccessControl() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchDoors = async () => {
     try {
@@ -34,6 +36,27 @@ export default function AccessControl() {
     
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!selectedDoor || isEditModalOpen) return;
+
+    const fetchDoorStatus = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/devices/zk/${selectedDoor.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setSelectedDoor(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    const interval = setInterval(fetchDoorStatus, 3000);
+    return () => clearInterval(interval);
+  }, [selectedDoor?.id, isEditModalOpen]);
 
   const handleUpdateDoor = async (e) => {
     e.preventDefault();
@@ -67,6 +90,8 @@ export default function AccessControl() {
   };
 
   const filteredDoors = doors.filter(door => {
+    if (statusFilter === 'online' && !door.online) return false;
+    if (statusFilter === 'offline' && door.online) return false;
     if (!searchQuery) return true;
     const search = searchQuery.toLowerCase();
     const displayName = door.door_name || door.name || '';
@@ -86,6 +111,15 @@ export default function AccessControl() {
           </div>
 
           <div className="flex items-center gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all font-medium text-slate-700 cursor-pointer hover:border-slate-300"
+            >
+              <option value="all">All Status</option>
+              <option value="online">Online</option>
+              <option value="offline">Offline</option>
+            </select>
             <input
               placeholder="Search door..."
               value={searchQuery}
@@ -106,7 +140,7 @@ export default function AccessControl() {
             <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 max-h-[300px] overflow-y-auto pr-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 min-h-[300px] max-h-[300px] overflow-y-auto pr-2">
             {filteredDoors.map((door) => {
               const isOpen = door.door_opened;
               const hasAlarm = door.alarm === '2' || door.alarm === 2;
@@ -122,7 +156,7 @@ export default function AccessControl() {
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="text-sm font-semibold text-slate-800">{displayName}</div>
-                      <div className="mt-0.5 text-[10px] text-slate-400 font-mono">{door.sn}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400 font-mono">{door.ip_address || door.sn}</div>
                       <div className="mt-1 flex items-center gap-2 text-[11px] font-medium text-slate-500">
                         <span>Door:</span>
                         <span className={`capitalize ${isOpen ? 'text-amber-600' : 'text-slate-700'}`}>
@@ -133,8 +167,9 @@ export default function AccessControl() {
                         )}
                       </div>
                       <div className="mt-0.5 flex items-center gap-2 text-[11px] font-medium text-slate-500">
-                        <span>Modbus:</span>
-                        <span className={door.modbus_register !== null ? 'text-violet-600' : 'text-slate-400'}>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          door.modbus_register !== null ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-400'
+                        }`}>
                           {door.modbus_register !== null ? `HR ${door.modbus_register}:${door.slot_no}` : 'Not Mapped'}
                         </span>
                       </div>
@@ -165,14 +200,14 @@ export default function AccessControl() {
       </div>
 
       {/* Door Details Modal */}
-      {selectedDoor && !isEditModalOpen && (
+      {selectedDoor && !isEditModalOpen && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
             <div className="p-6">
               <div className="flex items-start justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">{selectedDoor.door_name || selectedDoor.name || 'Unknown Door'}</h3>
-                  <p className="text-sm text-slate-400 font-mono text-xs mt-0.5">{selectedDoor.sn}</p>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{selectedDoor.sn}</p>
                   <p className="text-sm text-slate-500 mt-1">Door Controller Details & Mapping</p>
                 </div>
                 <button 
@@ -229,14 +264,6 @@ export default function AccessControl() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mb-3">
-                <button 
-                  onClick={() => alert('Remote unlock is not enabled in this version.')}
-                  className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-500/30 transition-all hover:bg-blue-700 active:scale-95">
-                  Unlock Door
-                </button>
-              </div>
-              
               <div className="flex gap-3">
                 <button 
                   onClick={() => setSelectedDoor(null)}
@@ -257,11 +284,11 @@ export default function AccessControl() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+      </div>
+      , document.body)}
 
       {/* Edit Door Config Modal */}
-      {isEditModalOpen && selectedDoor && (
+      {isEditModalOpen && selectedDoor && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
             <div className="p-6">
@@ -354,7 +381,7 @@ export default function AccessControl() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }
