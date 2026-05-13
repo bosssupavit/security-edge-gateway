@@ -136,19 +136,29 @@ export default function CameraMonitoring() {
     setIpError('');
 
     if (modalMode === 'add') {
-      const createdCamera = buildCameraFromDraft({
-        id: `local-${Date.now()}`,
-        index_code: '',
-        ip_address: '',
-        record_type: '',
-        record_location: '',
-        region_index_code: '',
-        site_index_code: '',
-        isLocal: true,
-      });
-
-      setLocalCameras((current) => [createdCamera, ...current]);
-      closeFormModal();
+      try {
+        const token = localStorage.getItem('access_token');
+        const payload = {
+          camera_name: cameraDraft.camera_name.trim(),
+          ip_address: cameraDraft.ip_address.trim(),
+          modbus_register: parseOptionalInt(cameraDraft.modbus_register),
+          channel_no: parseOptionalInt(cameraDraft.channel_no),
+        };
+        const response = await fetch('/api/devices/cameras', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) throw new Error('Failed to create camera');
+        closeFormModal();
+        fetchCameras();
+      } catch (err) {
+        console.error(err);
+        alert('Error creating camera');
+      }
       return;
     }
 

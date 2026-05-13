@@ -3,6 +3,7 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 import os
+import sys
 import pathlib
 
 from app.db import SessionLocal
@@ -317,8 +318,14 @@ def get_register_map():
 
 # ── Log endpoints ─────────────────────────────────────────────────────────────
 
-_LOG_FILE = pathlib.Path(__file__).parent.parent.parent / 'gateway.log'
 _LOG_TAIL_LINES = 200
+
+# ── Resolve log file path: works both in dev and as PyInstaller exe ───────────
+if getattr(sys, 'frozen', False):
+    # Running as compiled exe — log file sits next to the executable
+    _LOG_FILE = pathlib.Path(sys.executable).parent / 'gateway.log'
+else:
+    _LOG_FILE = pathlib.Path(__file__).parent.parent.parent / 'gateway.log'
 
 
 @router.get('/api/logs', response_class=PlainTextResponse)
